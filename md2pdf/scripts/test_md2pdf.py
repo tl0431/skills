@@ -132,6 +132,22 @@ def test_parse_blank_line():
     assert any(t["type"] == "blank" for t in tokens)
 
 
+def test_parse_table_separator():
+    """Separator row |---|---| must be skipped; table should have header + 1 data row."""
+    md = "| A | B |\n|---|---|\n| 1 | 2 |"
+    tokens = md2pdf.parse_markdown(md)
+    table_tokens = [t for t in tokens if t["type"] == "table"]
+    assert len(table_tokens) == 1
+    # Register a font so build_styles works
+    colors = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("Helvetica", colors)
+    # _build_table must skip the separator and return exactly 2 rows
+    tbl = md2pdf._build_table(table_tokens[0]["lines"], styles, colors, "Helvetica")
+    assert tbl is not None
+    # Table._cellvalues holds the row data
+    assert len(tbl._cellvalues) == 2
+
+
 # ---------------------------------------------------------------------------
 # Font registration
 # ---------------------------------------------------------------------------

@@ -382,7 +382,7 @@ def _build_table(lines: list, styles: dict, theme_colors: dict, font_name: str):
     rows = []
     for line in lines:
         # Skip separator rows (---|---)
-        if re.match(r'^[\s|:\-]+$', line.replace("|", "").replace("-", "").replace(":", "").replace(" ", "")):
+        if re.match(r'^[\s|:\-]+$', line):
             continue
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         rows.append(cells)
@@ -522,8 +522,15 @@ def convert(input_path: str, output_path: str, font_path: str,
     styles = build_styles(font_name, theme_colors)
 
     # Read markdown
-    with open(input_path, "r", encoding="utf-8") as f:
-        md_text = f.read()
+    try:
+        with open(input_path, "r", encoding="utf-8") as f:
+            md_text = f.read()
+    except FileNotFoundError:
+        print(f"错误：找不到文件 / Error: file not found: {input_path}")
+        sys.exit(1)
+    except PermissionError:
+        print(f"错误：无法读取文件 / Error: cannot read file: {input_path}")
+        sys.exit(1)
 
     # Parse
     tokens = parse_markdown(md_text)
