@@ -295,3 +295,50 @@ def test_cli_custom_theme(tmp_path):
     assert result.returncode == 0, f"CLI failed:\n{result.stderr}"
     assert output_pdf.exists()
     assert output_pdf.stat().st_size > 500
+
+
+# ---------------------------------------------------------------------------
+# Integration: rich Chinese markdown document
+# ---------------------------------------------------------------------------
+
+def test_integration_full_markdown(tmp_path):
+    """Build PDF from a rich Chinese markdown document."""
+    md_text = """# 数字生命调研报告
+
+## 背景
+
+这是一份**测试文档**，包含中文内容。
+
+### 子章节
+
+- 列表项一
+- 列表项二
+
+1. 有序列表一
+2. 有序列表二
+
+> 这是一个引用块，用于测试 callout 样式。
+
+| 名称 | 描述 | 状态 |
+|------|------|------|
+| 项目A | 测试项目 | 进行中 |
+| 项目B | 另一个项目 | 完成 |
+
+---
+
+## 结论
+
+文档生成测试完成。
+"""
+    input_md = tmp_path / "integration_test.md"
+    input_md.write_text(md_text, encoding="utf-8")
+    out_pdf = str(tmp_path / "integration_test.pdf")
+
+    result = md2pdf.convert(
+        input_path=str(input_md),
+        output_path=out_pdf,
+        font_path=BUNDLED_FONT,
+        theme_name="navy",
+    )
+    assert Path(out_pdf).exists()
+    assert Path(out_pdf).stat().st_size > 5000
