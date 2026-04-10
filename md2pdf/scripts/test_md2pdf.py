@@ -249,3 +249,33 @@ def test_convert_chinese_content(tmp_path):
     )
     md2pdf.convert(str(input_md), str(output_pdf), BUNDLED_FONT, theme_name="navy")
     assert output_pdf.exists() and output_pdf.stat().st_size > 1000
+
+
+# ---------------------------------------------------------------------------
+# CLI custom theme args
+# ---------------------------------------------------------------------------
+
+def test_cli_custom_theme(tmp_path):
+    """--theme custom with --accent/--dark/--muted should produce a valid PDF."""
+    import subprocess
+    input_md = tmp_path / "custom.md"
+    output_pdf = tmp_path / "custom.pdf"
+    input_md.write_text("# Custom Theme\n\nHello world.", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable, str(Path(__file__).parent / "md2pdf.py"),
+            "--input",  str(input_md),
+            "--output", str(output_pdf),
+            "--font",   BUNDLED_FONT,
+            "--theme",  "custom",
+            "--accent", "#FF0000",
+            "--dark",   "#000000",
+            "--muted",  "#999999",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"CLI failed:\n{result.stderr}"
+    assert output_pdf.exists()
+    assert output_pdf.stat().st_size > 500

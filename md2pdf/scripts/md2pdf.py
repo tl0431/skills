@@ -491,7 +491,9 @@ class HeaderFooterCanvas:
 # ---------------------------------------------------------------------------
 
 def convert(input_path: str, output_path: str, font_path: str,
-            theme_name: str = "navy", style_path: str = None) -> str:
+            theme_name: str = "navy", style_path: str = None,
+            custom_accent: str = None, custom_dark: str = None,
+            custom_muted: str = None) -> str:
     """
     Convert a Markdown file to PDF.
     Returns the output path.
@@ -501,6 +503,14 @@ def convert(input_path: str, output_path: str, font_path: str,
     if style_path and Path(style_path).exists():
         with open(style_path, "r", encoding="utf-8") as f:
             style_data = yaml.safe_load(f) or {}
+
+    # CLI custom colors override style file values
+    if custom_accent:
+        style_data["custom_accent"] = custom_accent
+    if custom_dark:
+        style_data["custom_dark"] = custom_dark
+    if custom_muted:
+        style_data["custom_muted"] = custom_muted
 
     # Register font
     font_name = register_font(font_path, "CustomFont")
@@ -567,6 +577,12 @@ def main():
                         help="Theme name (navy|forest|minimal|warm|coral|slate|"
                              "purple|teal|gold|rose|midnight|olive|custom)")
     parser.add_argument("--style",  default=None, help="Path to pdf_style.yaml")
+    parser.add_argument("--accent", default=None,
+                        help="Custom accent color hex (e.g. #FF0000), used when --theme custom")
+    parser.add_argument("--dark",   default=None,
+                        help="Custom dark color hex (e.g. #000000), used when --theme custom")
+    parser.add_argument("--muted",  default=None,
+                        help="Custom muted color hex (e.g. #999999), used when --theme custom")
     args = parser.parse_args()
 
     out = convert(
@@ -575,6 +591,9 @@ def main():
         font_path=args.font,
         theme_name=args.theme,
         style_path=args.style,
+        custom_accent=args.accent,
+        custom_dark=args.dark,
+        custom_muted=args.muted,
     )
     size_kb = Path(out).stat().st_size // 1024
     print(f"完成 / Done: {out} ({size_kb} KB)")
