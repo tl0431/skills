@@ -1,6 +1,6 @@
 ---
 name: md2pdf
-description: Convert Markdown files to professionally styled PDFs. Use this skill when the user says: 把 md 转成 PDF、生成报告 PDF、md转pdf、md2pdf、convert markdown to PDF、generate PDF from markdown、export as PDF、把文章导出为 PDF、将 markdown 导出、生成 PDF 报告. Trigger even if the user doesn't say "skill" — any request to turn a .md file into a PDF should use this skill.
+description: Convert Markdown (.md) files into professionally styled PDFs with themes, cover pages, and Chinese font support. Use this skill whenever the user wants to turn a Markdown file into a PDF — regardless of how they phrase it. Trigger on: md2pdf, .md → PDF, 把 .md 转成 PDF, 导出为 PDF, export as PDF, generate PDF from markdown, 生成 PDF, 打印成 PDF, nicely formatted pdf, convert markdown to pdf, 将 markdown 导出, 生成报告 PDF, turn .md into pdf. Also trigger when the user mentions a .md file path and asks for a PDF output, even if they say "print", "export", "generate", "导出", "转换", or "生成" without explicitly saying "skill". Do NOT trigger for: reading/summarizing PDFs, Word→PDF, CSV→PDF, webpage→PDF, MD→HTML, MD→PPT, or formatting/translating markdown without PDF output.
 ---
 
 # md2pdf — Markdown to PDF Converter
