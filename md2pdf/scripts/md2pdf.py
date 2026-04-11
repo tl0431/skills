@@ -43,6 +43,9 @@ THEMES = {
     "rose":     {"accent": "#B83280", "dark": "#2E0E1E", "muted": "#888888"},
     "midnight": {"accent": "#2D3748", "dark": "#0A0A0A", "muted": "#999999"},
     "olive":    {"accent": "#556B2F", "dark": "#1A2010", "muted": "#888888"},
+    "github":   {"accent": "#0366d6", "dark": "#24292e", "muted": "#6a737d",
+                 "heading_color": "#24292e", "separator_color": "#eaecef",
+                 "table_header_bg": "#f6f8fa", "table_header_fg": "#24292e"},
 }
 
 THEME_ANSI = {
@@ -72,18 +75,35 @@ def hex_to_color(hex_str: str):
 
 
 def resolve_theme(theme_name: str, style_data: dict) -> dict:
-    """Return {accent, dark, muted} Color objects for the given theme."""
+    """Return color dict for the given theme. Includes accent, dark, muted,
+    heading_color, separator_color, table_header_bg, table_header_fg."""
     if theme_name == "custom":
         accent = style_data.get("custom_accent", "#333333")
         dark   = style_data.get("custom_dark",   "#111111")
         muted  = style_data.get("custom_muted",  "#888888")
+        heading_color   = accent
+        separator_color = accent
+        table_header_bg = accent
+        table_header_fg = "#ffffff"
     else:
         t = THEMES.get(theme_name, THEMES["navy"])
-        accent, dark, muted = t["accent"], t["dark"], t["muted"]
+        accent = t["accent"]
+        dark   = t["dark"]
+        muted  = t["muted"]
+        # Extended keys — fall back to accent/white if not specified (all existing themes)
+        heading_color   = t.get("heading_color",   accent)
+        separator_color = t.get("separator_color", accent)
+        table_header_bg = t.get("table_header_bg", accent)
+        table_header_fg = t.get("table_header_fg", "#ffffff")
+
     return {
-        "accent": hex_to_color(accent),
-        "dark":   hex_to_color(dark),
-        "muted":  hex_to_color(muted),
+        "accent":          hex_to_color(accent),
+        "dark":            hex_to_color(dark),
+        "muted":           hex_to_color(muted),
+        "heading_color":   hex_to_color(heading_color),
+        "separator_color": hex_to_color(separator_color),
+        "table_header_bg": hex_to_color(table_header_bg),
+        "table_header_fg": hex_to_color(table_header_fg),
     }
 
 
@@ -135,21 +155,26 @@ def register_font(font_path: str, font_name: str = "CustomFont") -> str:
 
 def build_styles(font_name: str, theme_colors: dict) -> dict:
     """Return a dict of ParagraphStyle objects keyed by role."""
-    accent = theme_colors["accent"]
-    dark   = theme_colors["dark"]
-    muted  = theme_colors["muted"]
+    accent  = theme_colors["accent"]
+    dark    = theme_colors["dark"]
+    muted   = theme_colors["muted"]
+    heading = theme_colors["heading_color"]
 
     base = dict(fontName=font_name, textColor=dark, leading=20)
 
     return {
         "h1": ParagraphStyle("h1", fontSize=24, spaceAfter=12, spaceBefore=18,
-                             textColor=accent, fontName=font_name, leading=30),
+                             textColor=heading, fontName=font_name, leading=30),
         "h2": ParagraphStyle("h2", fontSize=18, spaceAfter=8,  spaceBefore=14,
-                             textColor=accent, fontName=font_name, leading=24),
+                             textColor=heading, fontName=font_name, leading=24),
         "h3": ParagraphStyle("h3", fontSize=14, spaceAfter=6,  spaceBefore=10,
-                             textColor=accent, fontName=font_name, leading=20),
+                             textColor=heading, fontName=font_name, leading=20),
         "h4": ParagraphStyle("h4", fontSize=12, spaceAfter=4,  spaceBefore=8,
                              textColor=dark,   fontName=font_name, leading=18),
+        "h5": ParagraphStyle("h5", fontSize=11, spaceAfter=4,  spaceBefore=6,
+                             textColor=dark,   fontName=font_name, leading=16),
+        "h6": ParagraphStyle("h6", fontSize=10, spaceAfter=2,  spaceBefore=4,
+                             textColor=muted,  fontName=font_name, leading=15),
         "body": ParagraphStyle("body", fontSize=11, spaceAfter=6, spaceBefore=2,
                                **base),
         "bullet": ParagraphStyle("bullet", fontSize=11, spaceAfter=4, spaceBefore=2,
@@ -173,7 +198,7 @@ def build_styles(font_name: str, theme_colors: dict) -> dict:
                                      alignment=TA_CENTER, textColor=muted,
                                      fontName=font_name, leading=18),
         "table_header": ParagraphStyle("table_header", fontSize=10, fontName=font_name,
-                                       textColor=colors.white, leading=14),
+                                       textColor=theme_colors["table_header_fg"], leading=14),
         "table_cell": ParagraphStyle("table_cell", fontSize=10, fontName=font_name,
                                      textColor=dark, leading=14),
     }
@@ -198,6 +223,10 @@ def inline_to_xml(text: str, font_name: str) -> str:
     text = re.sub(r'_([^_]+?)_', r'<i>\1</i>', text)
     # Inline code `text`
     text = re.sub(r'`([^`]+?)`', lambda m: f'<font name="{font_name}">{m.group(1)}</font>', text)
+    # Strikethrough ~~text~~
+    text = re.sub(r'~~(.+?)~~', r'<strike>\1</strike>', text)
+    # Images ![alt](url) — show alt text as placeholder (must come before links)
+    text = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', r'[图片: \1]', text)
     # Links [text](url) — show text only
     text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
     return text
@@ -256,6 +285,13 @@ def parse_markdown(md_text: str) -> list:
             i += 1
             continue
 
+        # Image ![alt](url) — must come before hr check to avoid * conflicts
+        m = re.match(r'^!\[([^\]]*)\]\(([^\)]+)\)', line.strip())
+        if m:
+            tokens.append({"type": "image", "alt": m.group(1), "src": m.group(2)})
+            i += 1
+            continue
+
         # Horizontal rule
         if re.match(r'^[-*_]{3,}\s*$', line.strip()):
             tokens.append({"type": "hr"})
@@ -311,6 +347,7 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
     flowables = []
     accent = theme_colors["accent"]
     ordered_counters = {}  # indent -> count
+    last_was_ordered = False  # tracks whether previous content token was ordered
 
     for tok in tokens:
         t = tok["type"]
@@ -318,17 +355,19 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
         if t == "blank":
             flowables.append(Spacer(1, 4))
 
-        elif t in ("h1", "h2", "h3", "h4"):
+        elif t in ("h1", "h2", "h3", "h4", "h5", "h6"):
             level = int(t[1])
             xml = inline_to_xml(tok["text"], font_name)
             flowables.append(Paragraph(xml, styles[t]))
             if level <= 2:
                 flowables.append(HRFlowable(width="100%", thickness=1,
-                                            color=accent, spaceAfter=4))
+                                            color=theme_colors["separator_color"],
+                                            spaceAfter=4))
 
         elif t == "para":
             xml = inline_to_xml(tok["text"], font_name)
             flowables.append(Paragraph(xml, styles["body"]))
+            last_was_ordered = False
 
         elif t == "bullet":
             indent = tok.get("indent", 0)
@@ -343,12 +382,16 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
 
         elif t == "ordered":
             indent = tok.get("indent", 0)
+            # Reset all counters when starting a new list after non-ordered content
+            if not last_was_ordered:
+                ordered_counters.clear()
             ordered_counters[indent] = ordered_counters.get(indent, 0) + 1
             # reset deeper levels
             for k in list(ordered_counters):
                 if k > indent:
                     ordered_counters[k] = 0
             num = ordered_counters[indent]
+            last_was_ordered = True
             xml = inline_to_xml(tok["text"], font_name)
             style = ParagraphStyle(
                 f"ordered_{indent}",
@@ -374,6 +417,11 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
             tbl = _build_table(tok["lines"], styles, theme_colors, font_name)
             if tbl:
                 flowables.append(tbl)
+
+        elif t == "image":
+            alt = tok.get("alt", "")
+            xml = f'[图片: {alt}]' if alt else '[图片]'
+            flowables.append(Paragraph(xml, styles["body"]))
 
     return flowables
 
@@ -401,11 +449,10 @@ def _build_table(lines: list, styles: dict, theme_colors: dict, font_name: str):
             cell_row.append(Paragraph(xml, style))
         table_data.append(cell_row)
 
-    accent = theme_colors["accent"]
     tbl = Table(table_data, repeatRows=1, hAlign="LEFT")
     tbl.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), accent),
-        ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
+        ("BACKGROUND", (0, 0), (-1, 0), theme_colors["table_header_bg"]),
+        ("TEXTCOLOR",  (0, 0), (-1, 0), theme_colors["table_header_fg"]),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1),
          [colors.Color(0.97, 0.97, 0.97), colors.white]),
         ("GRID",       (0, 0), (-1, -1), 0.5, colors.Color(0.8, 0.8, 0.8)),

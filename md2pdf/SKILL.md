@@ -23,6 +23,28 @@ Extract the input `.md` file path from the user's message. If relative, resolve 
 
 Output path defaults to same directory, same name, `.pdf` extension. If the user specified a different output path, use that.
 
+### Step 1.5: Quick or Custom mode
+
+Ask the user:
+
+```
+模式 / Mode:
+  1  快速 / Quick   — GitHub 风格，立即生成（推荐）
+  2  自定义 / Custom — 选择字体、主题、封面
+
+选择 (1/2, 直接回车 = 1 / press Enter = 1):
+```
+
+**If user chooses 1 (Quick / default):**
+- Font: use `default_font` from `pdf_style.yaml` if set; otherwise use bundled `NotoSansSC-Regular.ttf`
+- Theme: `github`
+- Skip Steps 2, 3, 3.5 entirely
+- Run Step 4 with `--theme github --no-cover` and no `--style` flag (or use yaml only if it exists)
+- Report result per Step 5
+
+**If user chooses 2 (Custom):**
+- Continue with Steps 2 → 3 → 3.5 → 4 as normal
+
 ### Step 2: Font selection
 
 Run: `python md2pdf/scripts/font_finder.py --yaml <path-to-pdf_style.yaml>`

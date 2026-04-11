@@ -62,6 +62,52 @@ def test_unknown_theme_falls_back_to_navy():
     assert c["accent"].hexval() == navy["accent"].hexval()
 
 
+def test_resolve_theme_returns_heading_color():
+    """All themes must return heading_color key."""
+    for name in list(md2pdf.THEMES.keys()) + ["navy", "custom"]:
+        c = md2pdf.resolve_theme(name, {})
+        assert "heading_color" in c, f"Missing heading_color for theme {name}"
+        assert "separator_color" in c
+        assert "table_header_bg" in c
+        assert "table_header_fg" in c
+
+
+def test_existing_themes_heading_color_equals_accent():
+    """For non-github themes, heading_color must equal accent (backward compat)."""
+    for name in ["navy", "minimal", "warm", "slate", "gold", "midnight"]:
+        c = md2pdf.resolve_theme(name, {})
+        assert c["heading_color"].hexval() == c["accent"].hexval(), \
+            f"{name}: heading_color {c['heading_color'].hexval()} != accent {c['accent'].hexval()}"
+
+
+def test_github_theme_heading_color_is_dark():
+    """GitHub theme: heading_color must equal dark (#24292e), not accent (#0366d6)."""
+    c = md2pdf.resolve_theme("github", {})
+    assert c["heading_color"].hexval() == c["dark"].hexval()
+    # accent is blue, heading is dark — they must differ
+    assert c["heading_color"].hexval() != c["accent"].hexval()
+
+
+def test_github_theme_separator_is_light_gray():
+    """GitHub theme: separator_color must be #eaecef (light gray)."""
+    c = md2pdf.resolve_theme("github", {})
+    # #eaecef = rgb(234, 236, 239) ≈ Color(0.918, 0.925, 0.937)
+    assert c["separator_color"].red > 0.9
+    assert c["separator_color"].green > 0.9
+    assert c["separator_color"].blue > 0.9
+
+
+def test_github_theme_table_header_is_light_bg_dark_fg():
+    """GitHub theme: table header must be light background with dark text."""
+    c = md2pdf.resolve_theme("github", {})
+    # Light background: all channels > 0.9
+    bg = c["table_header_bg"]
+    assert bg.red > 0.9 and bg.green > 0.9 and bg.blue > 0.9
+    # Dark foreground: all channels < 0.2
+    fg = c["table_header_fg"]
+    assert fg.red < 0.2 and fg.green < 0.2 and fg.blue < 0.2
+
+
 def test_hex_to_color_white():
     c = md2pdf.hex_to_color("#FFFFFF")
     assert c.red == 1.0 and c.green == 1.0 and c.blue == 1.0
@@ -80,8 +126,34 @@ def test_inline_bold():
     assert "<b>hello</b>" in md2pdf.inline_to_xml("**hello**", "CustomFont")
 
 
+def test_inline_bold_underscore():
+    assert "<b>hello</b>" in md2pdf.inline_to_xml("__hello__", "CustomFont")
+
+
 def test_inline_italic():
     assert "<i>world</i>" in md2pdf.inline_to_xml("*world*", "CustomFont")
+
+
+def test_inline_italic_underscore():
+    assert "<i>world</i>" in md2pdf.inline_to_xml("_world_", "CustomFont")
+
+
+def test_inline_bold_italic():
+    result = md2pdf.inline_to_xml("***hi***", "CustomFont")
+    assert "<b>" in result and "<i>" in result and "hi" in result
+
+
+def test_inline_strikethrough():
+    """~~text~~ must render with ReportLab strike tag."""
+    result = md2pdf.inline_to_xml("~~gone~~", "CustomFont")
+    assert "<strike>gone</strike>" in result
+
+
+def test_inline_image_shows_alt_text():
+    """![alt](url) must render as [图片: alt] placeholder, not the URL."""
+    result = md2pdf.inline_to_xml("![示意图](img.png)", "CustomFont")
+    assert "示意图" in result
+    assert "img.png" not in result
 
 
 def test_inline_code():
@@ -133,6 +205,24 @@ def test_parse_headings():
     assert types == ["h1", "h2", "h3"]
 
 
+def test_parse_h4_to_h6():
+    """Parser must recognize h4, h5, h6."""
+    tokens = md2pdf.parse_markdown("#### H4\n##### H5\n###### H6")
+    types = [t["type"] for t in tokens if t["type"] != "blank"]
+    assert types == ["h4", "h5", "h6"]
+
+
+def test_h5_h6_render_to_flowables():
+    """h5 and h6 tokens must produce non-empty flowables (not silently dropped)."""
+    md2pdf.register_font(BUNDLED_FONT, "H56TestFont")
+    colors = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("H56TestFont", colors)
+    tokens = md2pdf.parse_markdown("##### Heading 5\n###### Heading 6")
+    tokens = [t for t in tokens if t["type"] != "blank"]
+    flowables = md2pdf.tokens_to_flowables(tokens, styles, colors, "H56TestFont")
+    assert len(flowables) == 2, f"Expected 2 flowables for h5+h6, got {len(flowables)}"
+
+
 def test_parse_paragraph():
     tokens = md2pdf.parse_markdown("Hello world")
     assert any(t["type"] == "para" and "Hello" in t["text"] for t in tokens)
@@ -145,10 +235,43 @@ def test_parse_bullet_list():
     assert bullets[0]["text"] == "item one"
 
 
+def test_parse_nested_bullet_list():
+    """Nested bullet items must have indent=1."""
+    tokens = md2pdf.parse_markdown("- parent\n  - child")
+    bullets = [t for t in tokens if t["type"] == "bullet"]
+    assert len(bullets) == 2
+    assert bullets[0]["indent"] == 0
+    assert bullets[1]["indent"] == 1
+
+
 def test_parse_ordered_list():
     tokens = md2pdf.parse_markdown("1. first\n2. second")
     ordered = [t for t in tokens if t["type"] == "ordered"]
     assert len(ordered) == 2
+
+
+def test_parse_nested_ordered_list():
+    """Nested ordered items must have indent=1."""
+    tokens = md2pdf.parse_markdown("1. parent\n   1. child")
+    ordered = [t for t in tokens if t["type"] == "ordered"]
+    assert len(ordered) == 2
+    assert ordered[0]["indent"] == 0
+    assert ordered[1]["indent"] == 1
+
+
+def test_parse_ordered_list_counter_reset():
+    """Ordered list counter must restart at 1 after intervening paragraph."""
+    tokens = md2pdf.parse_markdown("1. first\n2. second\n\nParagraph.\n\n1. restart")
+    ordered = [t for t in tokens if t["type"] == "ordered"]
+    assert len(ordered) == 3
+    # Verify the rendered numbers reset to 1 after the paragraph break
+    md2pdf.register_font(BUNDLED_FONT, "CounterTestFont")
+    colors_ = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("CounterTestFont", colors_)
+    from reportlab.platypus import Paragraph as RLPara
+    flowables = md2pdf.tokens_to_flowables(tokens, styles, colors_, "CounterTestFont")
+    texts = [f.text for f in flowables if isinstance(f, RLPara) and f.text[:2] in ("1.", "2.", "3.")]
+    assert texts == ["1. first", "2. second", "1. restart"], f"Got: {texts}"
 
 
 def test_parse_code_block():
@@ -166,6 +289,15 @@ def test_parse_blockquote():
     assert "some quote" in bq[0]["text"]
 
 
+def test_parse_multiline_blockquote():
+    """Each > line becomes a separate blockquote token."""
+    tokens = md2pdf.parse_markdown("> line one\n> line two")
+    bq = [t for t in tokens if t["type"] == "blockquote"]
+    assert len(bq) == 2
+    assert "line one" in bq[0]["text"]
+    assert "line two" in bq[1]["text"]
+
+
 def test_parse_hr():
     tokens = md2pdf.parse_markdown("---")
     assert any(t["type"] == "hr" for t in tokens)
@@ -175,6 +307,71 @@ def test_parse_table():
     md = "| A | B |\n|---|---|\n| 1 | 2 |"
     tokens = md2pdf.parse_markdown(md)
     assert any(t["type"] == "table" for t in tokens)
+
+
+def test_build_table_github_uses_light_header():
+    """_build_table with github theme must use light header background, not blue."""
+    md2pdf.register_font(BUNDLED_FONT, "TblGithubFont")
+    colors_github = md2pdf.resolve_theme("github", {})
+    styles = md2pdf.build_styles("TblGithubFont", colors_github)
+    lines = ["| A | B |", "|---|---|", "| 1 | 2 |"]
+    tbl = md2pdf._build_table(lines, styles, colors_github, "TblGithubFont")
+    assert tbl is not None
+    # Find the BACKGROUND command for row 0 in the TableStyle
+    bg_cmd = None
+    for cmd in tbl._bkgrndcmds:
+        if cmd[0] == "BACKGROUND" and cmd[1] == (0, 0) and cmd[2] == (-1, 0):
+            bg_cmd = cmd
+    assert bg_cmd is not None, "No BACKGROUND command found for header row"
+    header_bg = bg_cmd[3]
+    # GitHub table_header_bg is #f6f8fa (light) — all channels > 0.9
+    assert header_bg.red > 0.9 and header_bg.green > 0.9 and header_bg.blue > 0.9, \
+        f"Expected light header bg, got {header_bg}"
+
+
+def test_parse_table_multiple_data_rows():
+    """Table with 3 data rows must produce token with header + 3 rows (4 total, minus separator)."""
+    md = "| A | B |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n| 5 | 6 |"
+    tokens = md2pdf.parse_markdown(md)
+    table_tokens = [t for t in tokens if t["type"] == "table"]
+    assert len(table_tokens) == 1
+    colors = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("Helvetica", colors)
+    tbl = md2pdf._build_table(table_tokens[0]["lines"], styles, colors, "Helvetica")
+    assert tbl is not None
+    assert len(tbl._cellvalues) == 4  # header + 3 data rows
+
+
+def test_parse_image_token():
+    """![alt](url) must produce an 'image' token with alt text."""
+    tokens = md2pdf.parse_markdown("![示意图](img.png)")
+    img = [t for t in tokens if t["type"] == "image"]
+    assert len(img) == 1
+    assert img[0]["alt"] == "示意图"
+
+
+def test_image_flowable_shows_alt():
+    """Image token → flowable must show alt text, never the URL."""
+    md2pdf.register_font(BUNDLED_FONT, "ImgFlowFont")
+    colors_ = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("ImgFlowFont", colors_)
+    tokens = [{"type": "image", "alt": "示意图", "src": "img.png"}]
+    flowables = md2pdf.tokens_to_flowables(tokens, styles, colors_, "ImgFlowFont")
+    assert len(flowables) == 1
+    assert "示意图" in flowables[0].text
+    assert "img.png" not in flowables[0].text
+
+
+def test_image_flowable_empty_alt():
+    """Image token with empty alt must render [图片], never the src filename."""
+    md2pdf.register_font(BUNDLED_FONT, "ImgEmptyFont")
+    colors_ = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("ImgEmptyFont", colors_)
+    tokens = [{"type": "image", "alt": "", "src": "secret/path.png"}]
+    flowables = md2pdf.tokens_to_flowables(tokens, styles, colors_, "ImgEmptyFont")
+    assert len(flowables) == 1
+    assert "secret" not in flowables[0].text
+    assert "path.png" not in flowables[0].text
 
 
 def test_parse_blank_line():
@@ -222,6 +419,33 @@ def test_build_styles_has_required_keys():
     styles = md2pdf.build_styles("StyleTestFont", colors)
     for key in ("h1", "h2", "h3", "body", "bullet", "code_block", "blockquote"):
         assert key in styles
+
+
+def test_build_styles_h1_uses_heading_color():
+    """h1/h2/h3 styles must use heading_color, not accent."""
+    md2pdf.register_font(BUNDLED_FONT, "HeadColorFont")
+    colors_github = md2pdf.resolve_theme("github", {})
+    styles = md2pdf.build_styles("HeadColorFont", colors_github)
+    # GitHub: heading_color == dark, accent == blue — they differ
+    assert styles["h1"].textColor == colors_github["heading_color"]
+    assert styles["h1"].textColor != colors_github["accent"]
+    assert styles["h2"].textColor == colors_github["heading_color"]
+    assert styles["h3"].textColor == colors_github["heading_color"]
+
+
+def test_tokens_to_flowables_uses_separator_color_for_h1_hr():
+    """HRFlowable after h1/h2 must use separator_color, not accent."""
+    from reportlab.platypus import HRFlowable as RLHRFlowable
+    md2pdf.register_font(BUNDLED_FONT, "SepColorFont")
+    colors_github = md2pdf.resolve_theme("github", {})
+    styles = md2pdf.build_styles("SepColorFont", colors_github)
+    tokens = [{"type": "h1", "text": "Title"}]
+    flowables = md2pdf.tokens_to_flowables(tokens, styles, colors_github, "SepColorFont")
+    hr_flowables = [f for f in flowables if isinstance(f, RLHRFlowable)]
+    assert len(hr_flowables) == 1
+    # separator_color for github is #eaecef (light gray), accent is #0366d6 (blue)
+    assert hr_flowables[0].color == colors_github["separator_color"]
+    assert hr_flowables[0].color != colors_github["accent"]
 
 
 # ---------------------------------------------------------------------------
@@ -326,6 +550,27 @@ def test_convert_letter_size(tmp_path):
     md2pdf.convert(str(input_md), str(output_pdf), BUNDLED_FONT,
                    style_path=str(style_yaml))
     assert output_pdf.exists()
+
+
+def test_convert_github_theme(tmp_path):
+    """Full PDF conversion with github theme must succeed and produce a valid file."""
+    input_md = tmp_path / "github_test.md"
+    output_pdf = tmp_path / "github_test.pdf"
+    input_md.write_text(
+        "# GitHub Style\n\n## Subheading\n\nBody text with **bold** and *italic*.\n\n"
+        "| Col A | Col B |\n|-------|-------|\n| Cell 1 | Cell 2 |\n\n"
+        "> A blockquote\n\n```python\nprint('hello')\n```\n\n"
+        "- Bullet one\n- Bullet two\n\n---\n\n### H3 heading\n",
+        encoding="utf-8",
+    )
+    result = md2pdf.convert(
+        input_path=str(input_md),
+        output_path=str(output_pdf),
+        font_path=BUNDLED_FONT,
+        theme_name="github",
+    )
+    assert output_pdf.exists()
+    assert output_pdf.stat().st_size > 2000
 
 
 def test_convert_chinese_content(tmp_path):
