@@ -437,7 +437,7 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
         elif t == "blockquote":
             xml = inline_to_xml(tok["text"], font_name)
             para = Paragraph(xml, styles["blockquote"])
-            bq_tbl = Table([[para]], colWidths=["100%"])
+            bq_tbl = Table([[para]], colWidths=[None])
             bq_tbl.setStyle(TableStyle([
                 ("LINEBEFORE", (0, 0), (0, -1), 4,
                  theme_colors["blockquote_bar"]),
@@ -445,7 +445,6 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                 ("TOPPADDING",   (0, 0), (-1, -1), 2),
                 ("BOTTOMPADDING",(0, 0), (-1, -1), 2),
-                ("BOX", (0, 0), (-1, -1), 0, colors.white),
             ]))
             flowables.append(bq_tbl)
 

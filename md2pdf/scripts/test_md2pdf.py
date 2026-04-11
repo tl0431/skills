@@ -706,7 +706,7 @@ def test_integration_full_markdown(tmp_path):
 
 
 def test_blockquote_flowable_is_table_with_left_bar():
-    """Blockquote must render as a Table (for left border), not a plain Paragraph."""
+    """Blockquote must render as a Table with a LINEBEFORE left border."""
     from reportlab.platypus import Table as RLTable
     md2pdf.register_font(BUNDLED_FONT, "BqFont")
     colors_github = md2pdf.resolve_theme("github", {})
@@ -716,3 +716,11 @@ def test_blockquote_flowable_is_table_with_left_bar():
     assert len(flowables) == 1
     assert isinstance(flowables[0], RLTable), \
         f"Expected Table for blockquote, got {type(flowables[0])}"
+    # Verify LINEBEFORE command exists with correct thickness and color
+    tbl = flowables[0]
+    linebefore_cmds = [c for c in tbl._linecmds if c[0] == "LINEBEFORE"]
+    assert len(linebefore_cmds) >= 1, "Expected LINEBEFORE command for left bar"
+    lb = linebefore_cmds[0]
+    assert lb[3] == 4, f"Expected LINEBEFORE thickness=4, got {lb[3]}"
+    assert lb[4] == colors_github["blockquote_bar"], \
+        f"Expected blockquote_bar color, got {lb[4]}"
