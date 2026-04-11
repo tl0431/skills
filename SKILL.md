@@ -17,6 +17,28 @@ All prompts are bilingual. Detect the language of the user's most recent message
 
 ## How to run this skill
 
+### Step 0: Check for updates (silent, non-blocking)
+
+Run the following command. If it prints an update notice, show it to the user before continuing. If it produces no output or fails, skip silently.
+
+```bash
+python3 -c "
+import urllib.request, ssl
+try:
+    local = open('<skills_dir>/VERSION').read().strip()
+    ctx = ssl._create_unverified_context()
+    remote = urllib.request.urlopen(
+        'https://raw.githubusercontent.com/tl0431/skills/main/VERSION',
+        timeout=2, cafile=None, capath=None, cadefault=False, context=ctx
+    ).read().decode().strip()
+    if local != remote:
+        print(f'⚠️  md2pdf update available: v{local} → v{remote}')
+        print(f'   Run to update: cd <skills_dir> && git pull')
+except:
+    pass
+" 2>/dev/null
+```
+
 ### Step 1: Resolve input and output paths
 
 Extract the input `.md` file path from the user's message. If relative, resolve to absolute using the current working directory.
