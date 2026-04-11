@@ -45,7 +45,8 @@ THEMES = {
     "olive":    {"accent": "#556B2F", "dark": "#1A2010", "muted": "#888888"},
     "github":   {"accent": "#0366d6", "dark": "#24292e", "muted": "#6a737d",
                  "heading_color": "#24292e", "separator_color": "#eaecef",
-                 "table_header_bg": "#f6f8fa", "table_header_fg": "#24292e"},
+                 "table_header_bg": "#f6f8fa", "table_header_fg": "#24292e",
+                 "code_color": "#0550ae"},
 }
 
 THEME_ANSI = {
@@ -85,6 +86,7 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
         separator_color = accent
         table_header_bg = accent
         table_header_fg = "#ffffff"
+        code_color      = dark
     else:
         t = THEMES.get(theme_name, THEMES["navy"])
         accent = t["accent"]
@@ -95,6 +97,7 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
         separator_color = t.get("separator_color", accent)
         table_header_bg = t.get("table_header_bg", accent)
         table_header_fg = t.get("table_header_fg", "#ffffff")
+        code_color      = t.get("code_color",      dark)
 
     return {
         "accent":          hex_to_color(accent),
@@ -104,6 +107,7 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
         "separator_color": hex_to_color(separator_color),
         "table_header_bg": hex_to_color(table_header_bg),
         "table_header_fg": hex_to_color(table_header_fg),
+        "code_color":      hex_to_color(code_color),
     }
 
 
@@ -180,7 +184,10 @@ def build_styles(font_name: str, theme_colors: dict) -> dict:
         "bullet": ParagraphStyle("bullet", fontSize=11, spaceAfter=4, spaceBefore=2,
                                  leftIndent=18, bulletIndent=6, **base),
         "code_inline": ParagraphStyle("code_inline", fontSize=10, spaceAfter=4,
-                                      fontName=font_name, textColor=dark, leading=16),
+                                      fontName=font_name,
+                                      textColor=theme_colors["code_color"],
+                                      backColor=colors.Color(0.965, 0.973, 0.980),
+                                      leading=16),
         "code_block": ParagraphStyle("code_block", fontSize=9, spaceAfter=8,
                                      spaceBefore=4, fontName=font_name,
                                      textColor=dark, leading=14,

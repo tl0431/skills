@@ -433,6 +433,31 @@ def test_build_styles_h1_uses_heading_color():
     assert styles["h3"].textColor == colors_github["heading_color"]
 
 
+def test_github_theme_has_code_color():
+    """github theme must have code_color key (blue for inline code)."""
+    c = md2pdf.resolve_theme("github", {})
+    assert "code_color" in c
+    # GitHub inline code is #0550ae — blue channel dominant
+    assert c["code_color"].blue > 0.5
+    assert c["code_color"].red < 0.3
+
+
+def test_build_styles_code_inline_uses_code_color():
+    """code_inline style must use theme code_color for github theme."""
+    md2pdf.register_font(BUNDLED_FONT, "CodeColorFont")
+    colors_github = md2pdf.resolve_theme("github", {})
+    styles = md2pdf.build_styles("CodeColorFont", colors_github)
+    assert styles["code_inline"].textColor == colors_github["code_color"]
+
+
+def test_existing_themes_code_color_equals_dark():
+    """Non-github themes: code_color must equal dark (backward compat)."""
+    for name in ["navy", "minimal", "warm"]:
+        c = md2pdf.resolve_theme(name, {})
+        assert c["code_color"].hexval() == c["dark"].hexval(), \
+            f"{name}: code_color should equal dark"
+
+
 def test_tokens_to_flowables_uses_separator_color_for_h1_hr():
     """HRFlowable after h1/h2 must use separator_color, not accent."""
     from reportlab.platypus import HRFlowable as RLHRFlowable
