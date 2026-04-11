@@ -472,9 +472,19 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
 def _build_table(lines: list, styles: dict, theme_colors: dict, font_name: str):
     """Parse GFM table lines into a ReportLab Table."""
     rows = []
+    alignments = []  # per-column: "LEFT", "CENTER", or "RIGHT"
+
     for line in lines:
-        # Skip separator rows (---|---)
+        # Separator row — parse alignment markers, skip as data
         if re.match(r'^[\s|:\-]+$', line):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            for cell in cells:
+                if cell.startswith(":") and cell.endswith(":"):
+                    alignments.append("CENTER")
+                elif cell.endswith(":"):
+                    alignments.append("RIGHT")
+                else:
+                    alignments.append("LEFT")
             continue
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         rows.append(cells)
@@ -482,7 +492,6 @@ def _build_table(lines: list, styles: dict, theme_colors: dict, font_name: str):
     if not rows:
         return None
 
-    # Build Paragraph cells
     table_data = []
     for r_idx, row in enumerate(rows):
         cell_row = []
@@ -493,7 +502,7 @@ def _build_table(lines: list, styles: dict, theme_colors: dict, font_name: str):
         table_data.append(cell_row)
 
     tbl = Table(table_data, repeatRows=1, hAlign="LEFT")
-    tbl.setStyle(TableStyle([
+    style_cmds = [
         ("BACKGROUND", (0, 0), (-1, 0), theme_colors["table_header_bg"]),
         ("TEXTCOLOR",  (0, 0), (-1, 0), theme_colors["table_header_fg"]),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1),
@@ -503,7 +512,11 @@ def _build_table(lines: list, styles: dict, theme_colors: dict, font_name: str):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ("LEFTPADDING",   (0, 0), (-1, -1), 6),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 6),
-    ]))
+    ]
+    for col_idx, align in enumerate(alignments):
+        if align in ("CENTER", "RIGHT"):
+            style_cmds.append(("ALIGN", (col_idx, 0), (col_idx, -1), align))
+    tbl.setStyle(TableStyle(style_cmds))
     return tbl
 
 

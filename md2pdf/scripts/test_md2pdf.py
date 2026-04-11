@@ -724,3 +724,20 @@ def test_blockquote_flowable_is_table_with_left_bar():
     assert lb[3] == 4, f"Expected LINEBEFORE thickness=4, got {lb[3]}"
     assert lb[4] == colors_github["blockquote_bar"], \
         f"Expected blockquote_bar color, got {lb[4]}"
+
+
+def test_table_column_alignment():
+    """Table separator :---: must produce ALIGN CENTER, ---: must produce RIGHT."""
+    md2pdf.register_font(BUNDLED_FONT, "TblAlignFont")
+    colors_n = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("TblAlignFont", colors_n)
+    lines = ["| L | C | R |", "|:---|:---:|---:|", "| a | b | c |"]
+    tbl = md2pdf._build_table(lines, styles, colors_n, "TblAlignFont")
+    assert tbl is not None
+    # Force layout so _cellStyles is populated
+    tbl.wrap(400, 600)
+    # row 0 = header, col 1 = CENTER, col 2 = RIGHT
+    center_found = tbl._cellStyles[0][1].alignment == "CENTER"
+    right_found  = tbl._cellStyles[0][2].alignment == "RIGHT"
+    assert center_found, f"Expected CENTER for col 1, got: {tbl._cellStyles[0][1].alignment}"
+    assert right_found,  f"Expected RIGHT for col 2, got: {tbl._cellStyles[0][2].alignment}"
