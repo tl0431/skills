@@ -45,14 +45,16 @@ After user picks, ask: "设为默认字体？/ Set as default font? (y/n)"
   > Default font set to [font name]. To change it, edit `default_font` in `pdf_style.yaml`, or say "use a different font this time" to override temporarily.
 - n → use for this session only
 
-**Font selection prompt format** (show format type for each font):
+**Font selection prompt format** — use box-drawing style, one font per row:
 ```
 请选择字体 / Please select a font:
-  1  PingFang SC         [TTC]
-  2  Arial Unicode       [TTF]
-  3  NotoSansSC          [TTF]
-  ...
-  0  其他 / Other (specify font name)
+  ┌───┬──────────────────────┬───────┐
+  │ 1 │ Arial Unicode        │ [TTF] │
+  │ 2 │ Hiragino Sans GB     │ [TTF] │
+  │ 3 │ NotoSansSC (bundled) │ [TTF] │
+  │ 4 │ STHeiti Light        │ [TTC] │
+  │ 0 │ 其他 / Other         │       │
+  └───┴──────────────────────┴───────┘
 ```
 
 Font path is `fonts[selected_name]["path"]`.
@@ -76,7 +78,7 @@ python <skills_dir>/scripts/md2pdf.py --print-themes
 
 (Replace `<skills_dir>` with the absolute path to the md2pdf skill directory, e.g. `/Users/username/.claude/skills/md2pdf`)
 
-**Valid theme names:** navy, forest, minimal, warm, coral, slate, purple, teal, gold, rose, midnight, olive, custom
+**Valid theme names:** navy, minimal, warm, slate, gold, midnight, custom
 
 If user enters an invalid name, run the command again and ask to re-pick.
 
@@ -88,13 +90,16 @@ If user enters an invalid name, run the command again and ask to re-pick.
 
 Ask: "是否生成封面页？/ Include a cover page? (y/n)"
 
-- n → skip cover (pass `--no-cover` flag, see Step 4)
-- y → ask the following (all optional, press Enter to skip):
-  - "封面标题 / Cover title: (默认用文档第一个 H1 / defaults to first H1)"
-  - "副标题 / Subtitle:"
-  - "元信息（如日期、作者）/ Meta (e.g. date, author):"
-
-  Write non-empty values to `pdf_style.yaml` under `cover_title`, `cover_subtitle`, `cover_meta`.
+- **n** → pass `--no-cover` flag (Step 4). Skip all cover prompts below.
+- **y** → ask the following two prompts (Enter = use default, no further input needed):
+  - "封面标题 / Cover title: (直接回车 = 文档第一个 H1 / press Enter = first H1)"
+    - If user presses Enter (empty input) → do NOT write `cover_title` to yaml (let converter use H1 default)
+    - If user types a title → write to `pdf_style.yaml` as `cover_title`
+  - "副标题 / Subtitle: (直接回车跳过 / press Enter to skip)"
+    - If user presses Enter → do NOT write `cover_subtitle`
+    - If user types → write to `pdf_style.yaml` as `cover_subtitle`
+  - Do NOT ask about meta separately. Auto-write today's date as default:
+    Write `cover_meta` to `pdf_style.yaml` with value: current date in format `YYYY年M月`
 
 ### Step 4: Run conversion
 

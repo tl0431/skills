@@ -15,10 +15,39 @@ BUNDLED_FONT = str(Path(__file__).parent.parent / "assets" / "fonts" / "NotoSans
 # Theme system
 # ---------------------------------------------------------------------------
 
+DISPLAYED_THEMES = ["navy", "minimal", "warm", "slate", "gold", "midnight"]
+
+
 def test_all_themes_resolve():
     for name in md2pdf.THEMES:
         c = md2pdf.resolve_theme(name, {})
         assert "accent" in c and "dark" in c and "muted" in c
+
+
+def test_themes_list_contains_only_displayed_themes():
+    """THEMES_LIST must only include the 6 selected themes."""
+    keys = [key for key, _, _ in md2pdf.THEMES_LIST]
+    assert set(keys) == set(DISPLAYED_THEMES), f"Expected {DISPLAYED_THEMES}, got {keys}"
+
+
+def test_themes_list_has_six_entries():
+    """THEMES_LIST must have exactly 6 entries."""
+    assert len(md2pdf.THEMES_LIST) == 6
+
+
+def test_print_theme_selector_uses_box_style(capsys):
+    """print_theme_selector output must contain box-drawing characters."""
+    md2pdf.print_theme_selector()
+    out = capsys.readouterr().out
+    assert "┌" in out or "│" in out, "Expected box-drawing characters in theme selector"
+
+
+def test_print_theme_selector_fits_in_ten_lines(capsys):
+    """Theme selector output must be ≤ 10 lines to avoid UI folding."""
+    md2pdf.print_theme_selector()
+    out = capsys.readouterr().out
+    lines = [l for l in out.splitlines() if l.strip()]
+    assert len(lines) <= 10, f"Too many lines: {len(lines)}"
 
 
 def test_custom_theme_uses_style_data():
@@ -57,7 +86,28 @@ def test_inline_italic():
 
 def test_inline_code():
     result = md2pdf.inline_to_xml("`code`", "CustomFont")
-    assert "Courier" in result and "code" in result
+    assert "CustomFont" in result and "code" in result
+
+
+def test_code_block_style_uses_font_name():
+    """code_block style must use the passed font, not hardcoded Courier."""
+    md2pdf.register_font(BUNDLED_FONT, "CodeTestFont")
+    colors = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("CodeTestFont", colors)
+    assert styles["code_block"].fontName == "CodeTestFont"
+    assert styles["code_inline"].fontName == "CodeTestFont"
+
+
+def test_chinese_in_code_block(tmp_path):
+    """Chinese text inside a fenced code block must not cause an error."""
+    input_md = tmp_path / "test.md"
+    output_pdf = tmp_path / "test.pdf"
+    input_md.write_text(
+        "# Test\n\n```\nYear 1-2 启动阶段\n    GPU 算力采购\n```\n",
+        encoding="utf-8",
+    )
+    result = md2pdf.convert(str(input_md), str(output_pdf), BUNDLED_FONT, theme_name="navy")
+    assert output_pdf.exists() and output_pdf.stat().st_size > 500
 
 
 def test_inline_link_shows_text_only():

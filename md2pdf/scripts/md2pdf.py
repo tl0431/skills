@@ -46,25 +46,21 @@ THEMES = {
 }
 
 THEME_ANSI = {
-    "navy": "\033[44m", "forest": "\033[42m", "minimal": "\033[100m",
-    "warm": "\033[43m", "coral": "\033[41m", "slate": "\033[100m",
-    "purple": "\033[45m", "teal": "\033[46m", "gold": "\033[33m",
-    "rose": "\033[35m", "midnight": "\033[100m", "olive": "\033[32m",
+    "navy":     "\033[44m",
+    "minimal":  "\033[100m",
+    "warm":     "\033[43m",
+    "slate":    "\033[48;5;240m",
+    "gold":     "\033[43;1m",
+    "midnight": "\033[40m",
 }
 
 THEMES_LIST = [
-    ("navy",     "Navy",     "深海军蓝，专业商务 / Deep navy, professional"),
-    ("forest",   "Forest",   "深绿，学术自然 / Deep green, academic"),
-    ("minimal",  "Minimal",  "黑白极简 / Black & white minimal"),
-    ("warm",     "Warm",     "暖棕，人文学术 / Warm brown, humanities"),
-    ("coral",    "Coral",    "珊瑚红，活力现代 / Coral red, vibrant"),
-    ("slate",    "Slate",    "石板灰，低调稳重 / Slate grey, understated"),
-    ("purple",   "Purple",   "深紫，科技感 / Deep purple, tech"),
-    ("teal",     "Teal",     "青绿，清新简洁 / Teal, fresh & clean"),
-    ("gold",     "Gold",     "金棕，高端商务 / Gold brown, premium"),
-    ("rose",     "Rose",     "玫瑰粉，轻奢优雅 / Rose pink, elegant"),
-    ("midnight", "Midnight", "午夜黑，极简暗色 / Midnight black, dark minimal"),
-    ("olive",    "Olive",    "橄榄绿，自然沉稳 / Olive green, natural"),
+    ("navy",     "Navy",     "深海军蓝，专业商务"),
+    ("minimal",  "Minimal",  "黑白极简"),
+    ("warm",     "Warm",     "暖棕，人文学术"),
+    ("slate",    "Slate",    "石板灰，低调稳重"),
+    ("gold",     "Gold",     "金棕，高端商务"),
+    ("midnight", "Midnight", "午夜黑，极简暗色"),
 ]
 
 
@@ -91,12 +87,22 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
     }
 
 
+def _cjk_pad(s: str, width: int) -> str:
+    """Pad string to `width` terminal columns (CJK chars count as 2 columns)."""
+    display_w = sum(2 if ord(c) > 0x2E7F else 1 for c in s)
+    return s + " " * max(0, width - display_w)
+
+
 def print_theme_selector():
+    # Column display widths: swatch=5, name=10, desc=18
     print("请选择主题 / Select theme:")
+    print("  ┌───┬───────┬────────────┬────────────────────┐")
     for i, (key, name, desc) in enumerate(THEMES_LIST, 1):
         ansi = THEME_ANSI[key]
-        print(f" {i:2}  {ansi}      \033[0m  {name:<10} {desc}")
-    print("  0             Custom      自定义 hex 颜色 / Custom hex colors")
+        swatch = f"{ansi}   \033[0m"
+        print(f"  │ {i} │ {swatch} │ {name:<10}│ {_cjk_pad(desc, 18)} │")
+    print("  │ 0 │       │ Custom     │ 自定义 hex 颜色     │")
+    print("  └───┴───────┴────────────┴────────────────────┘")
 
 
 # ---------------------------------------------------------------------------
@@ -149,9 +155,9 @@ def build_styles(font_name: str, theme_colors: dict) -> dict:
         "bullet": ParagraphStyle("bullet", fontSize=11, spaceAfter=4, spaceBefore=2,
                                  leftIndent=18, bulletIndent=6, **base),
         "code_inline": ParagraphStyle("code_inline", fontSize=10, spaceAfter=4,
-                                      fontName="Courier", textColor=dark, leading=16),
+                                      fontName=font_name, textColor=dark, leading=16),
         "code_block": ParagraphStyle("code_block", fontSize=9, spaceAfter=8,
-                                     spaceBefore=4, fontName="Courier",
+                                     spaceBefore=4, fontName=font_name,
                                      textColor=dark, leading=14,
                                      leftIndent=12, backColor=colors.Color(0.95, 0.95, 0.95)),
         "blockquote": ParagraphStyle("blockquote", fontSize=11, spaceAfter=6,
@@ -191,7 +197,7 @@ def inline_to_xml(text: str, font_name: str) -> str:
     text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
     text = re.sub(r'_([^_]+?)_', r'<i>\1</i>', text)
     # Inline code `text`
-    text = re.sub(r'`([^`]+?)`', r'<font name="Courier">\1</font>', text)
+    text = re.sub(r'`([^`]+?)`', lambda m: f'<font name="{font_name}">{m.group(1)}</font>', text)
     # Links [text](url) — show text only
     text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
     return text
@@ -578,8 +584,7 @@ def main():
     parser.add_argument("--output", help="Output .pdf file path")
     parser.add_argument("--font",   help="Path to TTF/OTF/TTC font file")
     parser.add_argument("--theme",  default="navy",
-                        help="Theme name (navy|forest|minimal|warm|coral|slate|"
-                             "purple|teal|gold|rose|midnight|olive|custom)")
+                        help="Theme name (navy|minimal|warm|slate|gold|midnight|custom)")
     parser.add_argument("--style",  default=None, help="Path to pdf_style.yaml")
     parser.add_argument("--accent", default=None,
                         help="Custom accent color hex (e.g. #FF0000), used when --theme custom")
