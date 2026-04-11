@@ -4,10 +4,11 @@
 
 ## 功能
 
-- 12 种内置主题（navy、forest、minimal、coral 等）
-- 自动检测系统字体，内置 NotoSansSC 作为后备
-- 支持封面页、页眉页脚、自动提取标题
-- 通过 `pdf_style.yaml` 自定义样式
+- 6 种内置主题（navy、minimal、warm、slate、gold、midnight），方框选择界面含 ANSI 色块预览
+- 自动检测系统字体，支持 PostScript OTF 自动转换（via fontTools），内置 NotoSansSC 作为后备
+- 代码块完整支持中文（使用选定字体渲染，不再乱码）
+- 支持封面页（回车选默认标题，元信息自动填入当前日期）、页眉页脚
+- 通过 `pdf_style.yaml` 自定义默认字体、主题等
 - 中英双语交互界面
 
 ## 使用方式
@@ -61,18 +62,13 @@ footer: true
 
 | 主题 | 风格 |
 |------|------|
-| navy | 深蓝商务 |
-| forest | 深绿自然 |
-| minimal | 极简黑白 |
-| warm | 暖棕温馨 |
-| coral | 珊瑚橙活力 |
-| slate | 石板灰专业 |
-| purple | 紫色优雅 |
-| teal | 青绿清新 |
-| gold | 金色典雅 |
-| rose | 玫瑰粉柔和 |
-| midnight | 深夜深色 |
-| olive | 橄榄绿沉稳 |
+| navy | 深海军蓝，专业商务 |
+| minimal | 黑白极简 |
+| warm | 暖棕，人文学术 |
+| slate | 石板灰，低调稳重 |
+| gold | 金棕，高端商务 |
+| midnight | 午夜黑，极简暗色 |
+| custom | 自定义 hex 颜色 |
 
 ## 依赖
 
