@@ -23,15 +23,19 @@ Run the following command. If it prints an update notice, show it to the user be
 
 ```bash
 python3 -c "
-import urllib.request, ssl
+import urllib.request, ssl, os
 try:
-    local = open('<skills_dir>/VERSION').read().strip()
+    vfile = '<skills_dir>/VERSION'
+    local = open(vfile).read().strip() if os.path.exists(vfile) else None
     ctx = ssl._create_unverified_context()
     remote = urllib.request.urlopen(
         'https://raw.githubusercontent.com/tl0431/skills/main/VERSION',
-        timeout=2, cafile=None, capath=None, cadefault=False, context=ctx
+        timeout=2, context=ctx
     ).read().decode().strip()
-    if local != remote:
+    if local is None:
+        print(f'⚠️  md2pdf: VERSION file not found. Latest is v{remote}.')
+        print(f'   Run to update: cd <skills_dir> && git pull')
+    elif local != remote:
         print(f'⚠️  md2pdf update available: v{local} → v{remote}')
         print(f'   Run to update: cd <skills_dir> && git pull')
 except:
