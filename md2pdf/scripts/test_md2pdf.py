@@ -781,3 +781,12 @@ def test_task_list_renders_checkbox_symbol():
     assert any("\u2611" in t for t in texts), f"Expected ☑ in {texts}"
     assert not any("[ ]" in t for t in texts)
     assert not any("[x]" in t for t in texts)
+
+
+def test_h3_fontsize_is_15pt():
+    """H3 must be 15pt to match GitHub's 1.25em ratio (was 14pt)."""
+    md2pdf.register_font(BUNDLED_FONT, "H3SizeFont")
+    colors_n = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("H3SizeFont", colors_n)
+    assert styles["h3"].fontSize == 15, \
+        f"Expected h3 fontSize=15, got {styles['h3'].fontSize}"
