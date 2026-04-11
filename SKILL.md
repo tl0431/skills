@@ -19,18 +19,17 @@ All prompts are bilingual. Detect the language of the user's most recent message
 
 ### Step 0: Check for updates (silent, non-blocking)
 
-Run the following command. If it prints an update notice, show it to the user before continuing. If it produces no output or fails, skip silently.
+Replace `<skills_dir>` in the command below with the absolute path to this skill's directory (shown at the top as "Base directory for this skill"), then run it. If it prints an update notice, show it to the user before continuing. If it produces no output or fails, skip silently.
 
 ```bash
 python3 -c "
-import urllib.request, ssl, os
+import urllib.request, os
 try:
     vfile = '<skills_dir>/VERSION'
     local = open(vfile).read().strip() if os.path.exists(vfile) else None
-    ctx = ssl._create_unverified_context()
     remote = urllib.request.urlopen(
         'https://raw.githubusercontent.com/tl0431/skills/main/VERSION',
-        timeout=2, context=ctx
+        timeout=2
     ).read().decode().strip()
     if local is None:
         print(f'⚠️  md2pdf: VERSION file not found. Latest is v{remote}.')
@@ -73,7 +72,7 @@ Ask the user:
 
 ### Step 2: Font selection
 
-Run: `python md2pdf/scripts/font_finder.py --yaml <path-to-pdf_style.yaml>`
+Run: `python <skills_dir>/scripts/font_finder.py --yaml <path-to-pdf_style.yaml>`
 
 The yaml path is `<user-cwd>/pdf_style.yaml` — the user's current working directory, NOT the skill directory.
 
@@ -112,7 +111,7 @@ If user picks "Other" and the font is not found on system:
 - non-commercial → use WebSearch to find a free download link, present top 3 options
 - commercial → reply: "请自行购买字体授权并将字体文件放置到系统字体目录后重新运行。/ Please purchase a font license and place the font file in your system fonts directory, then re-run."
 
-Final fallback (no font found at all): use bundled `md2pdf/assets/fonts/NotoSansSC-Regular.ttf`
+Final fallback (no font found at all): use bundled `<skills_dir>/assets/fonts/NotoSansSC-Regular.ttf`
 
 ### Step 3: Theme selection
 
@@ -152,7 +151,7 @@ Ask: "是否生成封面页？/ Include a cover page? (y/n)"
 ### Step 4: Run conversion
 
 ```bash
-python md2pdf/scripts/md2pdf.py \
+python <skills_dir>/scripts/md2pdf.py \
   --input "<input.md>" \
   --output "<output.pdf>" \
   --font "<font_path>" \
