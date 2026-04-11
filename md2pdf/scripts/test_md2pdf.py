@@ -746,3 +746,38 @@ def test_table_column_alignment():
     right_r1  = tbl._cellStyles[1][2].alignment == "RIGHT"
     assert center_r1, f"Expected CENTER for data row col 1, got: {tbl._cellStyles[1][1].alignment}"
     assert right_r1,  f"Expected RIGHT for data row col 2, got: {tbl._cellStyles[1][2].alignment}"
+
+
+def test_parse_task_list_unchecked():
+    """- [ ] item must produce token type 'task' with checked=False."""
+    tokens = md2pdf.parse_markdown("- [ ] todo item")
+    tasks = [t for t in tokens if t["type"] == "task"]
+    assert len(tasks) == 1
+    assert tasks[0]["checked"] is False
+    assert tasks[0]["text"] == "todo item"
+
+
+def test_parse_task_list_checked():
+    """- [x] item must produce token type 'task' with checked=True."""
+    tokens = md2pdf.parse_markdown("- [x] done item")
+    tasks = [t for t in tokens if t["type"] == "task"]
+    assert len(tasks) == 1
+    assert tasks[0]["checked"] is True
+
+
+def test_task_list_renders_checkbox_symbol():
+    """Task token must render ☐ or ☑ prefix, not '[ ]' or '[x]'."""
+    from reportlab.platypus import Paragraph as RLPara
+    md2pdf.register_font(BUNDLED_FONT, "TaskFont")
+    colors_n = md2pdf.resolve_theme("navy", {})
+    styles = md2pdf.build_styles("TaskFont", colors_n)
+    tokens = [
+        {"type": "task", "text": "todo", "checked": False, "indent": 0},
+        {"type": "task", "text": "done", "checked": True,  "indent": 0},
+    ]
+    flowables = md2pdf.tokens_to_flowables(tokens, styles, colors_n, "TaskFont")
+    texts = [f.text for f in flowables if isinstance(f, RLPara)]
+    assert any("\u2610" in t for t in texts), f"Expected ☐ in {texts}"
+    assert any("\u2611" in t for t in texts), f"Expected ☑ in {texts}"
+    assert not any("[ ]" in t for t in texts)
+    assert not any("[x]" in t for t in texts)

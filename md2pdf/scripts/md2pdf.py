@@ -338,6 +338,16 @@ def parse_markdown(md_text: str) -> list:
             i += 1
             continue
 
+        # Task list item - [ ] or - [x] (must come before bullet check)
+        m = re.match(r'^(\s*)[-*+]\s+\[([ xX])\]\s+(.*)', line)
+        if m:
+            indent = len(m.group(1)) // 2
+            checked = m.group(2).lower() == "x"
+            tokens.append({"type": "task", "text": m.group(3),
+                           "checked": checked, "indent": indent})
+            i += 1
+            continue
+
         # Unordered list item
         m = re.match(r'^(\s*)[-*+]\s+(.*)', line)
         if m:
@@ -412,6 +422,18 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
                 bulletIndent=6 + indent * 16,
             )
             flowables.append(Paragraph(f"\u2022 {xml}", style))
+
+        elif t == "task":
+            indent = tok.get("indent", 0)
+            checkbox = "\u2611" if tok["checked"] else "\u2610"
+            xml = inline_to_xml(tok["text"], font_name)
+            style = ParagraphStyle(
+                f"task_{indent}",
+                parent=styles["bullet"],
+                leftIndent=18 + indent * 16,
+                bulletIndent=6 + indent * 16,
+            )
+            flowables.append(Paragraph(f"{checkbox} {xml}", style))
 
         elif t == "ordered":
             indent = tok.get("indent", 0)
