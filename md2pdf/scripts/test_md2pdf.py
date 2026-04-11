@@ -790,3 +790,5 @@ def test_h3_fontsize_is_15pt():
     styles = md2pdf.build_styles("H3SizeFont", colors_n)
     assert styles["h3"].fontSize == 15, \
         f"Expected h3 fontSize=15, got {styles['h3'].fontSize}"
+    assert styles["h3"].leading == 21, \
+        f"Expected h3 leading=21, got {styles['h3'].leading}"
