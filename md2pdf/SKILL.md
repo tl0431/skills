@@ -27,10 +27,14 @@ Output path defaults to same directory, same name, `.pdf` extension. If the user
 
 Run: `python md2pdf/scripts/font_finder.py --yaml <path-to-pdf_style.yaml>`
 
+The yaml path is `<user-cwd>/pdf_style.yaml` — the user's current working directory, NOT the skill directory.
+
 This script:
 1. Reads `pdf_style.yaml` `fonts` cache — if populated, skips glob scan
-2. If no cache: scans system font directories, writes results to yaml
-3. Returns JSON: `{"fonts": {"Name": "/path"}, "default_font": "Name or null"}`
+2. If no cache: scans system font directories, tests ReportLab compatibility, writes results to yaml
+3. Returns JSON: `{"fonts": {"Name": {"path": "/...", "format": "TTF"}}, "default_font": "Name or null"}`
+
+**All fonts returned are guaranteed ReportLab-compatible** (tested at scan time).
 
 If `default_font` is set in yaml → use it, skip prompt.
 
@@ -41,15 +45,17 @@ After user picks, ask: "设为默认字体？/ Set as default font? (y/n)"
   > Default font set to [font name]. To change it, edit `default_font` in `pdf_style.yaml`, or say "use a different font this time" to override temporarily.
 - n → use for this session only
 
-**Font selection prompt format:**
+**Font selection prompt format** (show format type for each font):
 ```
 请选择字体 / Please select a font:
-  1  PingFang SC
-  2  Arial Unicode MS
-  3  STHeiti
+  1  PingFang SC         [TTC]
+  2  Arial Unicode       [TTF]
+  3  NotoSansSC          [TTF]
   ...
   0  其他 / Other (specify font name)
 ```
+
+Font path is `fonts[selected_name]["path"]`.
 
 If user picks "Other" and the font is not found on system:
 - Ask: "用途是商业还是非商业？/ Commercial or non-commercial use? (commercial/non-commercial)"
@@ -62,10 +68,33 @@ Final fallback (no font found at all): use bundled `md2pdf/assets/fonts/NotoSans
 
 Read `pdf_style.yaml` `theme` field.
 - Set → use it, skip prompt
-- Not set → show ANSI theme selector (see format in references/style_schema.md), ask user to pick
+- Not set → run the following Bash command to display the color selector, then ask user to pick:
+
+```bash
+python <skills_dir>/scripts/md2pdf.py --print-themes
+```
+
+(Replace `<skills_dir>` with the absolute path to the md2pdf skill directory, e.g. `/Users/username/.claude/skills/md2pdf`)
+
+**Valid theme names:** navy, forest, minimal, warm, coral, slate, purple, teal, gold, rose, midnight, olive, custom
+
+If user enters an invalid name, run the command again and ask to re-pick.
+
 - After pick, ask: "设为默认主题？/ Set as default theme? (y/n)"
   - y → write `theme` to yaml
   - n → use for this session only
+
+### Step 3.5: Cover page configuration
+
+Ask: "是否生成封面页？/ Include a cover page? (y/n)"
+
+- n → skip cover (pass `--no-cover` flag, see Step 4)
+- y → ask the following (all optional, press Enter to skip):
+  - "封面标题 / Cover title: (默认用文档第一个 H1 / defaults to first H1)"
+  - "副标题 / Subtitle:"
+  - "元信息（如日期、作者）/ Meta (e.g. date, author):"
+
+  Write non-empty values to `pdf_style.yaml` under `cover_title`, `cover_subtitle`, `cover_meta`.
 
 ### Step 4: Run conversion
 
@@ -75,8 +104,11 @@ python md2pdf/scripts/md2pdf.py \
   --output "<output.pdf>" \
   --font "<font_path>" \
   --theme "<theme_name>" \
-  --style "<pdf_style.yaml>"
+  --style "<pdf_style.yaml>" \
+  [--no-cover]
 ```
+
+Add `--no-cover` if user said no to cover page in Step 3.5.
 
 ### Step 5: Report result
 

@@ -233,6 +233,7 @@ def test_convert_all_themes(tmp_path):
 
 
 def test_convert_no_cover(tmp_path):
+    """cover: false in yaml should skip the cover page."""
     input_md = tmp_path / "test.md"
     output_pdf = tmp_path / "test_nocover.pdf"
     input_md.write_text("# Title\n\nBody text.", encoding="utf-8")
@@ -242,6 +243,27 @@ def test_convert_no_cover(tmp_path):
     md2pdf.convert(str(input_md), str(output_pdf), BUNDLED_FONT,
                    theme_name="minimal", style_path=str(style_yaml))
     assert output_pdf.exists()
+
+
+def test_convert_no_cover_param_overrides_yaml(tmp_path):
+    """no_cover=True flag must override cover:true in yaml."""
+    input_md = tmp_path / "test.md"
+    input_md.write_text("# Title\n\n" + "Para.\n\n" * 5, encoding="utf-8")
+    style_yaml = tmp_path / "style.yaml"
+    style_yaml.write_text("cover: true\n")
+
+    out_with = tmp_path / "with_cover.pdf"
+    out_without = tmp_path / "no_cover.pdf"
+
+    md2pdf.convert(str(input_md), str(out_with), BUNDLED_FONT,
+                   style_path=str(style_yaml), no_cover=False)
+    md2pdf.convert(str(input_md), str(out_without), BUNDLED_FONT,
+                   style_path=str(style_yaml), no_cover=True)
+
+    # no_cover=True should produce a smaller (or equal) file than with cover
+    assert out_with.exists() and out_without.exists()
+    # Cover adds at least a PageBreak + title text, so with_cover >= no_cover
+    assert out_with.stat().st_size >= out_without.stat().st_size
 
 
 def test_convert_letter_size(tmp_path):

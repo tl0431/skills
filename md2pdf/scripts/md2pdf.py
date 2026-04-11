@@ -19,6 +19,7 @@ from reportlab.platypus import (
     HRFlowable,
     PageBreak,
     Paragraph,
+    Preformatted,
     SimpleDocTemplate,
     Spacer,
     Table,
@@ -356,14 +357,8 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
             flowables.append(Paragraph(xml, styles["blockquote"]))
 
         elif t == "code_block":
-            # Escape XML in code blocks
-            safe = (tok["text"]
-                    .replace("&", "&amp;")
-                    .replace("<", "&lt;")
-                    .replace(">", "&gt;"))
-            # Use <pre> via Paragraph with Courier
-            lines_str = safe.replace("\n", "<br/>")
-            flowables.append(Paragraph(lines_str, styles["code_block"]))
+            # Preformatted preserves whitespace and line breaks without XML processing
+            flowables.append(Preformatted(tok["text"], styles["code_block"]))
 
         elif t == "hr":
             flowables.append(HRFlowable(width="100%", thickness=1,
@@ -493,7 +488,7 @@ class HeaderFooterCanvas:
 def convert(input_path: str, output_path: str, font_path: str,
             theme_name: str = "navy", style_path: str = None,
             custom_accent: str = None, custom_dark: str = None,
-            custom_muted: str = None) -> str:
+            custom_muted: str = None, no_cover: bool = False) -> str:
     """
     Convert a Markdown file to PDF.
     Returns the output path.
@@ -560,7 +555,7 @@ def convert(input_path: str, output_path: str, font_path: str,
     # Build flowables
     story = []
 
-    if style_data.get("cover", True):
+    if not no_cover and style_data.get("cover", True):
         story.extend(build_cover(style_data, styles, first_h1))
 
     story.extend(tokens_to_flowables(tokens, styles, theme_colors, font_name))
@@ -577,9 +572,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="Convert Markdown to PDF with theme support and Chinese fonts."
     )
-    parser.add_argument("--input",  required=True, help="Input .md file path")
-    parser.add_argument("--output", required=True, help="Output .pdf file path")
-    parser.add_argument("--font",   required=True, help="Path to TTF/OTF/TTC font file")
+    parser.add_argument("--print-themes", action="store_true",
+                        help="Print ANSI theme selector and exit")
+    parser.add_argument("--input",  help="Input .md file path")
+    parser.add_argument("--output", help="Output .pdf file path")
+    parser.add_argument("--font",   help="Path to TTF/OTF/TTC font file")
     parser.add_argument("--theme",  default="navy",
                         help="Theme name (navy|forest|minimal|warm|coral|slate|"
                              "purple|teal|gold|rose|midnight|olive|custom)")
@@ -590,7 +587,16 @@ def main():
                         help="Custom dark color hex (e.g. #000000), used when --theme custom")
     parser.add_argument("--muted",  default=None,
                         help="Custom muted color hex (e.g. #999999), used when --theme custom")
+    parser.add_argument("--no-cover", action="store_true",
+                        help="Skip cover page even if cover: true in yaml")
     args = parser.parse_args()
+
+    if args.print_themes:
+        print_theme_selector()
+        sys.exit(0)
+
+    if not args.input or not args.output or not args.font:
+        parser.error("--input, --output, and --font are required for conversion")
 
     out = convert(
         input_path=args.input,
@@ -601,6 +607,7 @@ def main():
         custom_accent=args.accent,
         custom_dark=args.dark,
         custom_muted=args.muted,
+        no_cover=args.no_cover,
     )
     size_kb = Path(out).stat().st_size // 1024
     print(f"完成 / Done: {out} ({size_kb} KB)")

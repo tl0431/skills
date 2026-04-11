@@ -49,3 +49,66 @@ def test_filter_chinese_fonts():
 def test_bundled_font_exists():
     bundled = font_finder.bundled_font_path()
     assert Path(bundled).exists(), f"Bundled font not found at {bundled}"
+
+
+# ---------------------------------------------------------------------------
+# Tests for new functions added in April 2026
+# ---------------------------------------------------------------------------
+
+def test_font_compatibility_bundled_is_true():
+    """Bundled NotoSansSC should always be ReportLab-compatible."""
+    bundled = font_finder.bundled_font_path()
+    assert font_finder.test_font_compatibility(bundled) is True
+
+
+def test_font_compatibility_nonexistent_is_false():
+    """Non-existent path should return False, not raise."""
+    result = font_finder.test_font_compatibility("/nonexistent/font.ttf")
+    assert result is False
+
+
+def test_font_compatibility_caches_result():
+    """Second call with same path should use cache (no re-test)."""
+    bundled = font_finder.bundled_font_path()
+    font_finder._COMPAT_CACHE.clear()
+    font_finder.test_font_compatibility(bundled)
+    assert bundled in font_finder._COMPAT_CACHE
+    # Cache hit: result still correct
+    assert font_finder._COMPAT_CACHE[bundled] is True
+
+
+def test_font_format_ttf():
+    assert font_finder.font_format("/fonts/MyFont.ttf") == "TTF"
+
+
+def test_font_format_ttc():
+    assert font_finder.font_format("/fonts/MyFont.ttc") == "TTC"
+
+
+def test_font_format_otf():
+    assert font_finder.font_format("/fonts/MyFont.otf") == "OTF"
+
+
+def test_get_fonts_includes_bundled(tmp_path):
+    """get_fonts() should always include the bundled NotoSansSC as a fallback."""
+    yaml_path = tmp_path / "pdf_style.yaml"
+    fonts, default = font_finder.get_fonts(str(yaml_path))
+    assert any("NotoSansSC" in name for name in fonts), \
+        "Bundled font should appear in font list"
+    assert default is None
+
+
+def test_get_fonts_all_paths_compatible(tmp_path):
+    """Every font returned by get_fonts() must pass ReportLab compatibility."""
+    yaml_path = tmp_path / "pdf_style.yaml"
+    fonts, _ = font_finder.get_fonts(str(yaml_path))
+    for name, path in fonts.items():
+        assert font_finder.test_font_compatibility(path), \
+            f"Font '{name}' at {path} failed ReportLab compatibility"
+
+
+def test_convert_cache_dir_creates_directory():
+    """_convert_cache_dir() should create and return a writable directory."""
+    d = font_finder._convert_cache_dir()
+    assert d.exists()
+    assert d.is_dir()
