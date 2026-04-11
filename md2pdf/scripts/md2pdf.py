@@ -46,7 +46,8 @@ THEMES = {
     "github":   {"accent": "#0366d6", "dark": "#24292e", "muted": "#6a737d",
                  "heading_color": "#24292e", "separator_color": "#eaecef",
                  "table_header_bg": "#f6f8fa", "table_header_fg": "#24292e",
-                 "code_color": "#0550ae", "code_bg": "#f6f8fa"},
+                 "code_color": "#0550ae", "code_bg": "#f6f8fa",
+                 "blockquote_bar": "#dfe2e5"},
 }
 
 THEME_ANSI = {
@@ -87,7 +88,8 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
         table_header_bg = accent
         table_header_fg = "#ffffff"
         code_color      = dark
-        code_bg = "#f0f0f0"
+        code_bg         = "#f0f0f0"
+        blockquote_bar  = muted
     else:
         t = THEMES.get(theme_name, THEMES["navy"])
         accent = t["accent"]
@@ -100,6 +102,7 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
         table_header_fg = t.get("table_header_fg", "#ffffff")
         code_color      = t.get("code_color",      dark)
         code_bg         = t.get("code_bg",         "#f0f0f0")
+        blockquote_bar  = t.get("blockquote_bar",  muted)
 
     return {
         "accent":          hex_to_color(accent),
@@ -111,6 +114,7 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
         "table_header_fg": hex_to_color(table_header_fg),
         "code_color":      hex_to_color(code_color),
         "code_bg":         hex_to_color(code_bg),
+        "blockquote_bar":  hex_to_color(blockquote_bar),
     }
 
 
@@ -432,7 +436,18 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
 
         elif t == "blockquote":
             xml = inline_to_xml(tok["text"], font_name)
-            flowables.append(Paragraph(xml, styles["blockquote"]))
+            para = Paragraph(xml, styles["blockquote"])
+            bq_tbl = Table([[para]], colWidths=["100%"])
+            bq_tbl.setStyle(TableStyle([
+                ("LINEBEFORE", (0, 0), (0, -1), 4,
+                 theme_colors["blockquote_bar"]),
+                ("LEFTPADDING",  (0, 0), (-1, -1), 12),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING",   (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING",(0, 0), (-1, -1), 2),
+                ("BOX", (0, 0), (-1, -1), 0, colors.white),
+            ]))
+            flowables.append(bq_tbl)
 
         elif t == "code_block":
             # Preformatted preserves whitespace and line breaks without XML processing

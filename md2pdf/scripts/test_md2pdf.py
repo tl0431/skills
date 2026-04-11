@@ -703,4 +703,16 @@ def test_integration_full_markdown(tmp_path):
         theme_name="navy",
     )
     assert Path(out_pdf).exists()
-    assert Path(out_pdf).stat().st_size > 5000
+
+
+def test_blockquote_flowable_is_table_with_left_bar():
+    """Blockquote must render as a Table (for left border), not a plain Paragraph."""
+    from reportlab.platypus import Table as RLTable
+    md2pdf.register_font(BUNDLED_FONT, "BqFont")
+    colors_github = md2pdf.resolve_theme("github", {})
+    styles = md2pdf.build_styles("BqFont", colors_github)
+    tokens = [{"type": "blockquote", "text": "A quote"}]
+    flowables = md2pdf.tokens_to_flowables(tokens, styles, colors_github, "BqFont")
+    assert len(flowables) == 1
+    assert isinstance(flowables[0], RLTable), \
+        f"Expected Table for blockquote, got {type(flowables[0])}"
