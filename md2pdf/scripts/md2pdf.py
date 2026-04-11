@@ -160,8 +160,30 @@ def register_font(font_path: str, font_name: str = "CustomFont") -> str:
     return font_name
 
 
+def _register_bold_variant(font_path: str, font_name: str) -> None:
+    """If a Bold variant exists alongside font_path, register it and create a font family."""
+    from reportlab.pdfbase.pdfmetrics import registerFontFamily
+    path = Path(font_path)
+    # Look for Bold variant: e.g. NotoSansSC-Regular.ttf → NotoSansSC-Bold.{ttf,otf}
+    stem = path.stem  # e.g. "NotoSansSC-Regular"
+    base = stem.replace("-Regular", "").replace("Regular", "")
+    bold_name = font_name + "Bold"
+    for suffix in [".ttf", ".otf", ".TTF", ".OTF"]:
+        bold_path = path.parent / f"{base}-Bold{suffix}"
+        if bold_path.exists():
+            try:
+                register_font(str(bold_path), bold_name)
+                registerFontFamily(font_name,
+                                   normal=font_name,
+                                   bold=bold_name,
+                                   italic=font_name,
+                                   boldItalic=bold_name)
+            except Exception:
+                pass
+            return
+
+
 _MONO_CANDIDATES = [
-    "/System/Library/Fonts/Menlo.ttc",
     "/Library/Fonts/Courier New.ttf",
     "C:/Windows/Fonts/consola.ttf",
     "C:/Windows/Fonts/cour.ttf",
@@ -241,9 +263,21 @@ def build_styles(font_name: str, theme_colors: dict,
 # Inline markdown → ReportLab XML
 # ---------------------------------------------------------------------------
 
-def inline_to_xml(text: str, font_name: str) -> str:
+def inline_to_xml(text: str, font_name: str, theme_colors: dict = None) -> str:
     """Convert inline markdown (bold, italic, code, links) to ReportLab XML."""
-    # Escape XML special chars first (except & which we handle carefully)
+    # Extract inline code spans first (before any other processing) to avoid
+    # italic/bold patterns inside backticks causing tag nesting errors.
+    code_spans = {}
+    placeholder_tmpl = "\x00CODE{}\x00"
+
+    def stash_code(m):
+        idx = len(code_spans)
+        code_spans[idx] = m.group(1)
+        return placeholder_tmpl.format(idx)
+
+    text = re.sub(r'`([^`]+?)`', stash_code, text)
+
+    # Escape XML special chars
     text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     # Bold+italic ***text*** or ___text___
     text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<b><i>\1</i></b>', text)
@@ -254,14 +288,28 @@ def inline_to_xml(text: str, font_name: str) -> str:
     # Italic *text* or _text_
     text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
     text = re.sub(r'_([^_]+?)_', r'<i>\1</i>', text)
-    # Inline code `text`
-    text = re.sub(r'`([^`]+?)`', lambda m: f'<font name="{font_name}">{m.group(1)}</font>', text)
     # Strikethrough ~~text~~
     text = re.sub(r'~~(.+?)~~', r'<strike>\1</strike>', text)
     # Images ![alt](url) — show alt text as placeholder (must come before links)
     text = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', r'[图片: \1]', text)
     # Links [text](url) — show text only
     text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+
+    # Restore inline code spans with appropriate styling
+    if theme_colors is not None:
+        code_color = theme_colors["code_color"].hexval().replace("0x", "#")
+        code_bg    = theme_colors["code_bg"].hexval().replace("0x", "#")
+        def restore_code(idx):
+            content = code_spans[idx].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            return f'<font name="{font_name}" color="{code_color}" backColor="{code_bg}">{content}</font>'
+    else:
+        def restore_code(idx):
+            content = code_spans[idx].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            return f'<font name="{font_name}">{content}</font>'
+
+    for idx in range(len(code_spans)):
+        text = text.replace(placeholder_tmpl.format(idx), restore_code(idx))
+
     return text
 
 
@@ -400,7 +448,7 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
 
         elif t in ("h1", "h2", "h3", "h4", "h5", "h6"):
             level = int(t[1])
-            xml = inline_to_xml(tok["text"], font_name)
+            xml = inline_to_xml(tok["text"], font_name, theme_colors)
             flowables.append(Paragraph(xml, styles[t]))
             if level <= 2:
                 flowables.append(HRFlowable(width="100%", thickness=1,
@@ -408,13 +456,13 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
                                             spaceAfter=4))
 
         elif t == "para":
-            xml = inline_to_xml(tok["text"], font_name)
+            xml = inline_to_xml(tok["text"], font_name, theme_colors)
             flowables.append(Paragraph(xml, styles["body"]))
             last_was_ordered = False
 
         elif t == "bullet":
             indent = tok.get("indent", 0)
-            xml = inline_to_xml(tok["text"], font_name)
+            xml = inline_to_xml(tok["text"], font_name, theme_colors)
             style = ParagraphStyle(
                 f"bullet_{indent}",
                 parent=styles["bullet"],
@@ -426,7 +474,7 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
         elif t == "task":
             indent = tok.get("indent", 0)
             checkbox = "\u2611" if tok["checked"] else "\u2610"
-            xml = inline_to_xml(tok["text"], font_name)
+            xml = inline_to_xml(tok["text"], font_name, theme_colors)
             style = ParagraphStyle(
                 f"task_{indent}",
                 parent=styles["bullet"],
@@ -447,7 +495,7 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
                     ordered_counters[k] = 0
             num = ordered_counters[indent]
             last_was_ordered = True
-            xml = inline_to_xml(tok["text"], font_name)
+            xml = inline_to_xml(tok["text"], font_name, theme_colors)
             style = ParagraphStyle(
                 f"ordered_{indent}",
                 parent=styles["bullet"],
@@ -457,7 +505,7 @@ def tokens_to_flowables(tokens: list, styles: dict, theme_colors: dict,
             flowables.append(Paragraph(f"{num}. {xml}", style))
 
         elif t == "blockquote":
-            xml = inline_to_xml(tok["text"], font_name)
+            xml = inline_to_xml(tok["text"], font_name, theme_colors)
             para = Paragraph(xml, styles["blockquote"])
             bq_tbl = Table([[para]], colWidths=[None])
             bq_tbl.setStyle(TableStyle([
@@ -518,7 +566,7 @@ def _build_table(lines: list, styles: dict, theme_colors: dict, font_name: str):
     for r_idx, row in enumerate(rows):
         cell_row = []
         for cell in row:
-            xml = inline_to_xml(cell, font_name)
+            xml = inline_to_xml(cell, font_name, theme_colors)
             style = styles["table_header"] if r_idx == 0 else styles["table_cell"]
             cell_row.append(Paragraph(xml, style))
         table_data.append(cell_row)
@@ -638,8 +686,9 @@ def convert(input_path: str, output_path: str, font_path: str,
     if custom_muted:
         style_data["custom_muted"] = custom_muted
 
-    # Register font
+    # Register font (and Bold variant if available)
     font_name = register_font(font_path, "CustomFont")
+    _register_bold_variant(font_path, font_name)
 
     # Resolve theme
     theme_colors = resolve_theme(theme_name, style_data)
