@@ -643,6 +643,26 @@ def test_cli_custom_theme(tmp_path):
 # Integration: rich Chinese markdown document
 # ---------------------------------------------------------------------------
 
+def test_github_code_block_background_is_f6f8fa():
+    """code_block backColor for github theme must be #f6f8fa (all channels > 0.96)."""
+    md2pdf.register_font(BUNDLED_FONT, "CodeBgFont")
+    colors_github = md2pdf.resolve_theme("github", {})
+    styles = md2pdf.build_styles("CodeBgFont", colors_github)
+    bg = styles["code_block"].backColor
+    assert bg.red > 0.96 and bg.green > 0.96 and bg.blue > 0.96, \
+        f"Expected #f6f8fa-ish background, got {bg}"
+
+
+def test_build_styles_code_block_uses_mono_font():
+    """code_block and code_inline must use mono_font_name when provided."""
+    md2pdf.register_font(BUNDLED_FONT, "BodyFont2")
+    md2pdf.register_font(BUNDLED_FONT, "MonoFont2")
+    colors_github = md2pdf.resolve_theme("github", {})
+    styles = md2pdf.build_styles("BodyFont2", colors_github, mono_font_name="MonoFont2")
+    assert styles["code_block"].fontName == "MonoFont2"
+    assert styles["code_inline"].fontName == "MonoFont2"
+
+
 def test_integration_full_markdown(tmp_path):
     """Build PDF from a rich Chinese markdown document."""
     md_text = """# 数字生命调研报告

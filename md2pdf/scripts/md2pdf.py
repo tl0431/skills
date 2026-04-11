@@ -46,7 +46,7 @@ THEMES = {
     "github":   {"accent": "#0366d6", "dark": "#24292e", "muted": "#6a737d",
                  "heading_color": "#24292e", "separator_color": "#eaecef",
                  "table_header_bg": "#f6f8fa", "table_header_fg": "#24292e",
-                 "code_color": "#0550ae"},
+                 "code_color": "#0550ae", "code_bg": "#f6f8fa"},
 }
 
 THEME_ANSI = {
@@ -87,6 +87,7 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
         table_header_bg = accent
         table_header_fg = "#ffffff"
         code_color      = dark
+        code_bg = "#f0f0f0"
     else:
         t = THEMES.get(theme_name, THEMES["navy"])
         accent = t["accent"]
@@ -98,6 +99,7 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
         table_header_bg = t.get("table_header_bg", accent)
         table_header_fg = t.get("table_header_fg", "#ffffff")
         code_color      = t.get("code_color",      dark)
+        code_bg         = t.get("code_bg",         "#f0f0f0")
 
     return {
         "accent":          hex_to_color(accent),
@@ -108,6 +110,7 @@ def resolve_theme(theme_name: str, style_data: dict) -> dict:
         "table_header_bg": hex_to_color(table_header_bg),
         "table_header_fg": hex_to_color(table_header_fg),
         "code_color":      hex_to_color(code_color),
+        "code_bg":         hex_to_color(code_bg),
     }
 
 
@@ -153,16 +156,34 @@ def register_font(font_path: str, font_name: str = "CustomFont") -> str:
     return font_name
 
 
+_MONO_CANDIDATES = [
+    "/System/Library/Fonts/Menlo.ttc",
+    "/Library/Fonts/Courier New.ttf",
+    "C:/Windows/Fonts/consola.ttf",
+    "C:/Windows/Fonts/cour.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+]
+
+def find_mono_font() -> str | None:
+    """Return path to first available monospace font, or None."""
+    for p in _MONO_CANDIDATES:
+        if Path(p).exists():
+            return p
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Style builder
 # ---------------------------------------------------------------------------
 
-def build_styles(font_name: str, theme_colors: dict) -> dict:
+def build_styles(font_name: str, theme_colors: dict,
+                 mono_font_name: str = None) -> dict:
     """Return a dict of ParagraphStyle objects keyed by role."""
     accent  = theme_colors["accent"]
     dark    = theme_colors["dark"]
     muted   = theme_colors["muted"]
     heading = theme_colors["heading_color"]
+    _mono = mono_font_name or font_name
 
     base = dict(fontName=font_name, textColor=dark, leading=20)
 
@@ -184,14 +205,15 @@ def build_styles(font_name: str, theme_colors: dict) -> dict:
         "bullet": ParagraphStyle("bullet", fontSize=11, spaceAfter=4, spaceBefore=2,
                                  leftIndent=18, bulletIndent=6, **base),
         "code_inline": ParagraphStyle("code_inline", fontSize=10, spaceAfter=4,
-                                      fontName=font_name,
+                                      fontName=_mono,
                                       textColor=theme_colors["code_color"],
                                       backColor=colors.Color(0.965, 0.973, 0.980),
                                       leading=16),
         "code_block": ParagraphStyle("code_block", fontSize=9, spaceAfter=8,
-                                     spaceBefore=4, fontName=font_name,
+                                     spaceBefore=4, fontName=_mono,
                                      textColor=dark, leading=14,
-                                     leftIndent=12, backColor=colors.Color(0.95, 0.95, 0.95)),
+                                     leftIndent=12,
+                                     backColor=theme_colors["code_bg"]),
         "blockquote": ParagraphStyle("blockquote", fontSize=11, spaceAfter=6,
                                      spaceBefore=4, leftIndent=20,
                                      textColor=muted, fontName=font_name, leading=18),
@@ -574,7 +596,14 @@ def convert(input_path: str, output_path: str, font_path: str,
     theme_colors = resolve_theme(theme_name, style_data)
 
     # Build styles
-    styles = build_styles(font_name, theme_colors)
+    mono_font_name = font_name
+    mono_path = find_mono_font()
+    if mono_path:
+        try:
+            mono_font_name = register_font(mono_path, "MonoFont")
+        except Exception:
+            pass
+    styles = build_styles(font_name, theme_colors, mono_font_name=mono_font_name)
 
     # Read markdown
     try:
