@@ -741,3 +741,8 @@ def test_table_column_alignment():
     right_found  = tbl._cellStyles[0][2].alignment == "RIGHT"
     assert center_found, f"Expected CENTER for col 1, got: {tbl._cellStyles[0][1].alignment}"
     assert right_found,  f"Expected RIGHT for col 2, got: {tbl._cellStyles[0][2].alignment}"
+    # row 1 = data row — ALIGN command spans all rows so same alignment must apply
+    center_r1 = tbl._cellStyles[1][1].alignment == "CENTER"
+    right_r1  = tbl._cellStyles[1][2].alignment == "RIGHT"
+    assert center_r1, f"Expected CENTER for data row col 1, got: {tbl._cellStyles[1][1].alignment}"
+    assert right_r1,  f"Expected RIGHT for data row col 2, got: {tbl._cellStyles[1][2].alignment}"
