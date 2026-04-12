@@ -11,9 +11,10 @@ Converts a Markdown file to a professionally styled PDF using pure Python (Repor
 
 ## Language behavior
 
-All prompts are bilingual. Detect the language of the user's most recent message:
-- Chinese last → Chinese first, English in parentheses: `请选择字体 / Please select a font:`
-- English last → English first, Chinese in parentheses: `Please select a font / 请选择字体:`
+Use only the language of the user's most recent non-numeric message. No bilingual mixing.
+- User wrote Chinese → all prompts in Chinese only
+- User wrote English → all prompts in English only
+- If the user switches language mid-flow, switch immediately from that point on
 
 ## How to run this skill
 
@@ -50,14 +51,24 @@ Output path defaults to same directory, same name, `.pdf` extension. If the user
 
 ### Step 1.5: Quick or Custom mode
 
-Ask the user:
+Ask the user in the detected language (follow Language behavior rule at top):
 
+Chinese:
 ```
-模式 / Mode:
-  1  快速 / Quick   — GitHub 风格，立即生成（推荐）
-  2  自定义 / Custom — 选择字体、主题、封面
+模式:
+  1  快速 — GitHub 风格，立即生成（推荐）
+  2  自定义 — 选择字体、主题、封面
 
-选择 (1/2, 直接回车 = 1 / press Enter = 1):
+选择 (1/2, 直接回车 = 1):
+```
+
+English:
+```
+Mode:
+  1  Quick  — GitHub style, generate now (recommended)
+  2  Custom — choose font, theme, cover
+
+Select (1/2, press Enter = 1):
 ```
 
 **If user chooses 1 (Quick / default):**
@@ -86,30 +97,37 @@ This script:
 If `default_font` is set in yaml → use it, skip prompt.
 
 If not set → show font selection prompt (see format below), ask user to pick.
-After user picks, ask: "设为默认字体？/ Set as default font? (y/n)"
-- y → write `default_font` to yaml. If this is the FIRST time setting a default, show tip:
-  > 已将 [字体名] 设为默认字体。如需修改，可在 `pdf_style.yaml` 中更改 `default_font` 字段，或在调用时说"这次用别的字体"临时覆盖。
-  > Default font set to [font name]. To change it, edit `default_font` in `pdf_style.yaml`, or say "use a different font this time" to override temporarily.
+After user picks, ask in the detected language:
+- Chinese: "设为默认字体？(y/n)"
+- English: "Set as default font? (y/n)"
+- y → write `default_font` to yaml. If this is the FIRST time setting a default, show tip in detected language:
+  - Chinese: "已将 [字体名] 设为默认字体。如需修改，可在 `pdf_style.yaml` 中更改 `default_font` 字段，或在调用时说"这次用别的字体"临时覆盖。"
+  - English: "Default font set to [font name]. To change it, edit `default_font` in `pdf_style.yaml`, or say 'use a different font this time' to override temporarily."
 - n → use for this session only
 
-**Font selection prompt format** — use box-drawing style, one font per row:
+**Font selection prompt format** — use box-drawing style, one font per row. Header line in detected language:
+- Chinese: "请选择字体:"
+- English: "Please select a font:"
 ```
-请选择字体 / Please select a font:
   ┌───┬──────────────────────┬───────┐
   │ 1 │ Arial Unicode        │ [TTF] │
   │ 2 │ Hiragino Sans GB     │ [TTF] │
   │ 3 │ NotoSansSC (bundled) │ [TTF] │
   │ 4 │ STHeiti Light        │ [TTC] │
-  │ 0 │ 其他 / Other         │       │
+  │ 0 │ 其他 (Chinese) / Other (English) │ │
   └───┴──────────────────────┴───────┘
 ```
+(Show "其他" for Chinese, "Other" for English in the last row.)
 
 Font path is `fonts[selected_name]["path"]`.
 
 If user picks "Other" and the font is not found on system:
-- Ask: "用途是商业还是非商业？/ Commercial or non-commercial use? (commercial/non-commercial)"
+- Chinese: "用途是商业还是非商业？(commercial/non-commercial)"
+- English: "Commercial or non-commercial use? (commercial/non-commercial)"
 - non-commercial → use WebSearch to find a free download link, present top 3 options
-- commercial → reply: "请自行购买字体授权并将字体文件放置到系统字体目录后重新运行。/ Please purchase a font license and place the font file in your system fonts directory, then re-run."
+- commercial:
+  - Chinese: "请自行购买字体授权并将字体文件放置到系统字体目录后重新运行。"
+  - English: "Please purchase a font license and place the font file in your system fonts directory, then re-run."
 
 Final fallback (no font found at all): use bundled `<skills_dir>/assets/fonts/NotoSansSC-Regular.ttf`
 
@@ -131,7 +149,7 @@ If user enters an invalid input, run the command again and ask to re-pick.
 
 **Valid theme names for Custom mode:** navy, minimal, warm, slate, gold, midnight, custom
 
-- After pick, ask in the detected language (follow Language behavior rule at top):
+- After pick, ask in the detected language:
   - Chinese: "设为默认主题？(y/n)"
   - English: "Set as default theme? (y/n)"
   - y → write `theme` to yaml
@@ -139,18 +157,18 @@ If user enters an invalid input, run the command again and ask to re-pick.
 
 ### Step 3.5: Cover page configuration
 
-Ask in the detected language (follow Language behavior rule at top):
+Ask in the detected language:
 - Chinese: "是否生成封面页？(y/n)"
 - English: "Include a cover page? (y/n)"
 
 - **n** → pass `--no-cover` flag (Step 4). Skip all cover prompts below.
 - **y** → ask the following two prompts:
-  - Cover title prompt (use detected language):
+  - Cover title prompt in detected language:
     - Chinese: "封面标题（输入标题，或输入 d 使用文档第一个 H1）："
     - English: "Cover title (type a title, or type 'd' to use the first H1):"
     - If user types `d` or `default` → do NOT write `cover_title` to yaml (let converter use H1 default)
     - Otherwise → write the typed title to `pdf_style.yaml` as `cover_title`
-  - Subtitle prompt (use detected language):
+  - Subtitle prompt in detected language:
     - Chinese: "副标题（输入副标题，或输入 s 跳过）："
     - English: "Subtitle (type a subtitle, or type 's' to skip):"
     - If user types `s` or `skip` → do NOT write `cover_subtitle`
