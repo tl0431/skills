@@ -51,12 +51,12 @@ THEMES = {
 }
 
 THEME_ANSI = {
-    "navy":     "\033[44m",
-    "minimal":  "\033[100m",
-    "warm":     "\033[43m",
-    "slate":    "\033[48;5;240m",
-    "gold":     "\033[43;1m",
-    "midnight": "\033[40m",
+    "navy":     "\033[44m",          # blue (#1C3A5E)
+    "minimal":  "\033[47m",          # white — represents clean minimal aesthetic
+    "warm":     "\033[48;5;130m",    # brown (#af5f00 ≈ #7B4F2E)
+    "slate":    "\033[48;5;240m",    # gray (#4A5568)
+    "gold":     "\033[48;5;178m",    # golden yellow (#d7af00 ≈ #B7791F)
+    "midnight": "\033[48;5;236m",    # very dark gray — visible dark swatch
 }
 
 THEMES_LIST = [
@@ -125,15 +125,21 @@ def _cjk_pad(s: str, width: int) -> str:
 
 
 def print_theme_selector():
-    # Column display widths: swatch=5, name=10, desc=18
-    print("请选择主题 / Select theme:")
-    print("  ┌───┬───────┬────────────┬────────────────────┐")
-    for i, (key, name, desc) in enumerate(THEMES_LIST, 1):
-        ansi = THEME_ANSI[key]
-        swatch = f"{ansi}   \033[0m"
-        print(f"  │ {i} │ {swatch} │ {name:<10}│ {_cjk_pad(desc, 18)} │")
-    print("  │ 0 │       │ Custom     │ 自定义 hex 颜色     │")
-    print("  └───┴───────┴────────────┴────────────────────┘")
+    # 3-line format: header + two rows of 3 themes each (with color swatches + short desc)
+    # Keeps total output ≤ 3 lines so Claude Code does not collapse the bash output.
+    SHORT_DESC = {
+        "navy":     "深海军蓝", "minimal": "极简黑白",
+        "warm":     "暖棕学术", "slate":   "石板灰",
+        "gold":     "金棕商务", "midnight":"午夜黑",
+    }
+    print("Select theme / 选择主题:")
+    row1, row2 = [], []
+    for i, (key, name, _) in enumerate(THEMES_LIST, 1):
+        swatch = f"{THEME_ANSI[key]}  \033[0m"
+        entry = f"  {i}{swatch}{name} {SHORT_DESC[key]}"
+        (row1 if i <= 3 else row2).append(entry)
+    print("".join(row1))
+    print("".join(row2) + "   0·Custom")
 
 
 # ---------------------------------------------------------------------------

@@ -35,19 +35,20 @@ def test_themes_list_has_six_entries():
     assert len(md2pdf.THEMES_LIST) == 6
 
 
-def test_print_theme_selector_uses_box_style(capsys):
-    """print_theme_selector output must contain box-drawing characters."""
+def test_print_theme_selector_contains_theme_names(capsys):
+    """print_theme_selector output must contain all theme names."""
     md2pdf.print_theme_selector()
     out = capsys.readouterr().out
-    assert "┌" in out or "│" in out, "Expected box-drawing characters in theme selector"
+    for _, name, _ in md2pdf.THEMES_LIST:
+        assert name in out, f"Expected theme name '{name}' in selector output"
 
 
-def test_print_theme_selector_fits_in_ten_lines(capsys):
-    """Theme selector output must be ≤ 10 lines to avoid UI folding."""
+def test_print_theme_selector_fits_in_three_lines(capsys):
+    """Theme selector output must be ≤ 3 lines to avoid Claude Code UI folding."""
     md2pdf.print_theme_selector()
     out = capsys.readouterr().out
     lines = [l for l in out.splitlines() if l.strip()]
-    assert len(lines) <= 10, f"Too many lines: {len(lines)}"
+    assert len(lines) <= 3, f"Too many lines ({len(lines)}): output would be collapsed in Claude Code UI"
 
 
 def test_custom_theme_uses_style_data():

@@ -117,21 +117,19 @@ Final fallback (no font found at all): use bundled `<skills_dir>/assets/fonts/No
 
 Read `pdf_style.yaml` `theme` field.
 - Set → use it, skip prompt
-- Not set → present the following theme list directly to the user (do NOT run --print-themes; output the table below as your message):
+- Not set → run the following Bash command, then ask user to pick a number:
 
-```
-1  Navy      深海军蓝，专业商务 / Deep navy, professional
-2  Minimal   黑白极简 / Black & white minimal
-3  Warm      暖棕，人文学术 / Warm brown, academic
-4  Slate     石板灰，低调稳重 / Slate gray, understated
-5  Gold      金棕，高端商务 / Gold brown, premium
-6  Midnight  午夜黑，极简暗色 / Midnight black, dark minimal
-0  Custom    自定义颜色 / Custom hex colors
+```bash
+python <skills_dir>/scripts/md2pdf.py --print-themes
 ```
 
-Ask the user to pick a number. If user enters an invalid input, show the list again and ask to re-pick.
+(Replace `<skills_dir>` with the absolute path to this skill's directory.)
 
-**Valid theme names:** navy, minimal, warm, slate, gold, midnight, custom
+The output is compact (3 lines) and shows color swatches for all 6 themes. **Note: `github` is not listed here — it is only available in Quick mode.**
+
+If user enters an invalid input, run the command again and ask to re-pick.
+
+**Valid theme names for Custom mode:** navy, minimal, warm, slate, gold, midnight, custom
 
 - After pick, ask in the detected language (follow Language behavior rule at top):
   - Chinese: "设为默认主题？(y/n)"
