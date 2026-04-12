@@ -414,8 +414,8 @@ def parse_markdown(md_text: str) -> list:
             i += 1
             continue
 
-        # Table — collect all consecutive table lines
-        if "|" in line:
+        # Table — GFM table: header row followed by separator row (|---|---|)
+        if "|" in line and i + 1 < len(lines) and re.match(r'^\s*\|?[-:| ]+\|[-:| ]*$', lines[i + 1]):
             table_lines = []
             while i < len(lines) and "|" in lines[i]:
                 table_lines.append(lines[i])
