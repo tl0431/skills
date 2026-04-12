@@ -117,34 +117,46 @@ Final fallback (no font found at all): use bundled `<skills_dir>/assets/fonts/No
 
 Read `pdf_style.yaml` `theme` field.
 - Set → use it, skip prompt
-- Not set → run the following Bash command to display the color selector, then ask user to pick:
+- Not set → present the following theme list directly to the user (do NOT run --print-themes; output the table below as your message):
 
-```bash
-python <skills_dir>/scripts/md2pdf.py --print-themes
+```
+1  Navy      深海军蓝，专业商务 / Deep navy, professional
+2  Minimal   黑白极简 / Black & white minimal
+3  Warm      暖棕，人文学术 / Warm brown, academic
+4  Slate     石板灰，低调稳重 / Slate gray, understated
+5  Gold      金棕，高端商务 / Gold brown, premium
+6  Midnight  午夜黑，极简暗色 / Midnight black, dark minimal
+0  Custom    自定义颜色 / Custom hex colors
 ```
 
-(Replace `<skills_dir>` with the absolute path to the md2pdf skill directory, e.g. `/Users/username/.claude/skills/md2pdf`)
+Ask the user to pick a number. If user enters an invalid input, show the list again and ask to re-pick.
 
 **Valid theme names:** navy, minimal, warm, slate, gold, midnight, custom
 
-If user enters an invalid name, run the command again and ask to re-pick.
-
-- After pick, ask: "设为默认主题？/ Set as default theme? (y/n)"
+- After pick, ask in the detected language (follow Language behavior rule at top):
+  - Chinese: "设为默认主题？(y/n)"
+  - English: "Set as default theme? (y/n)"
   - y → write `theme` to yaml
   - n → use for this session only
 
 ### Step 3.5: Cover page configuration
 
-Ask: "是否生成封面页？/ Include a cover page? (y/n)"
+Ask in the detected language (follow Language behavior rule at top):
+- Chinese: "是否生成封面页？(y/n)"
+- English: "Include a cover page? (y/n)"
 
 - **n** → pass `--no-cover` flag (Step 4). Skip all cover prompts below.
-- **y** → ask the following two prompts (Enter = use default, no further input needed):
-  - "封面标题 / Cover title: (直接回车 = 文档第一个 H1 / press Enter = first H1)"
-    - If user presses Enter (empty input) → do NOT write `cover_title` to yaml (let converter use H1 default)
-    - If user types a title → write to `pdf_style.yaml` as `cover_title`
-  - "副标题 / Subtitle: (直接回车跳过 / press Enter to skip)"
-    - If user presses Enter → do NOT write `cover_subtitle`
-    - If user types → write to `pdf_style.yaml` as `cover_subtitle`
+- **y** → ask the following two prompts:
+  - Cover title prompt (use detected language):
+    - Chinese: "封面标题（输入标题，或输入 d 使用文档第一个 H1）："
+    - English: "Cover title (type a title, or type 'd' to use the first H1):"
+    - If user types `d` or `default` → do NOT write `cover_title` to yaml (let converter use H1 default)
+    - Otherwise → write the typed title to `pdf_style.yaml` as `cover_title`
+  - Subtitle prompt (use detected language):
+    - Chinese: "副标题（输入副标题，或输入 s 跳过）："
+    - English: "Subtitle (type a subtitle, or type 's' to skip):"
+    - If user types `s` or `skip` → do NOT write `cover_subtitle`
+    - Otherwise → write to `pdf_style.yaml` as `cover_subtitle`
   - Do NOT ask about meta separately. Auto-write today's date as default:
     Write `cover_meta` to `pdf_style.yaml` with value: current date in format `YYYY年M月`
 
